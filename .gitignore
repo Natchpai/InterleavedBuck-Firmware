@@ -18,6 +18,11 @@ Release/
 .launch/
 .laconic/
 *.launch
+.metadata/
+*.log
+.gdb_history
+compile_commands.json
+
 
 # =========================================================================
 # Cross-Platform System Junk (Ignore OS-specific background files)
