@@ -74,7 +74,7 @@ SECTIONS
     *(.ccmram)	
     *(.ccmram*)
     . = ALIGN(4);
-     _eccmram = .;	 /* Marks the end of CCMRAM */
+     _eccmram = .;	 /* Marks the end of CCMRAM .......*/
      
     
  } >CCMRAM AT> FLASH 
