@@ -112,10 +112,6 @@ void init_CCMRAM(void) {
         *pDest++ = *pSource++;
     }
 
-//    uint32_t *pBss = &_sccmram_bss;
-//    while (pBss < &_eccmram_bss) {
-//         *pBss++ = 0;
-//    }
 }
 
 
