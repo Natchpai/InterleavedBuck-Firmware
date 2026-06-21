@@ -10,6 +10,7 @@ Release/
 *.o
 *.su
 *.d
+*.list
 
 # =========================================================================
 # Eclipse / STM32CubeIDE Local Configurations (Ignore local UI/path states)
@@ -22,7 +23,7 @@ Release/
 *.log
 .gdb_history
 compile_commands.json
-
+.mxproject
 
 # =========================================================================
 # Cross-Platform System Junk (Ignore OS-specific background files)
