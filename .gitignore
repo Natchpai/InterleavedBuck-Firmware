@@ -15,6 +15,7 @@ Release/
 # Eclipse / STM32CubeIDE Local Configurations (Ignore local UI/path states)
 # =========================================================================
 .settings/
+.settings\
 .launch/
 .laconic/
 *.launch
@@ -36,4 +37,5 @@ Desktop.ini
 .fseventsd
 .Spotlight-V100
 .Trashes
+
 /LQR_2PhaseBuck_RE/.settings
