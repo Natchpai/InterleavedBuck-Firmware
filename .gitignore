@@ -1,0 +1,38 @@
+# =========================================================================
+# STM32CubeIDE Build Outputs (Ignore compiler artifacts)
+# =========================================================================
+Debug/
+Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.su
+*.d
+
+# =========================================================================
+# Eclipse / STM32CubeIDE Local Configurations (Ignore local UI/path states)
+# =========================================================================
+.settings/
+.launch/
+.laconic/
+*.launch
+
+# =========================================================================
+# Cross-Platform System Junk (Ignore OS-specific background files)
+# =========================================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.Trashes
