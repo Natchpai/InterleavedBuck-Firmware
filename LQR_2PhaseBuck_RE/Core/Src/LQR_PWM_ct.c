@@ -35,8 +35,8 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 
 // Gain Matrix
-__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.06053420555455f, K1_x_iL2=-0.00073855637634f, K1_x_vc=-0.03433181611727f, K1_d_u1=0.61387074424668f, K1_d_u2=-0.00116035874281f, K1_e_vo=-0.00137383883056f, K1_e_iL=-0.00013840471874f;
-__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00073855637634f, K2_x_iL2=0.06053420555455f, K2_x_vc=-0.03433181611727f, K2_d_u1=-0.00116035874282f, K2_d_u2=0.61387074424667f, K2_e_vo=-0.00137383883056f, K2_e_iL=0.00013840471874f;
+__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.03192907f, K1_x_iL2=0.00437535f, K1_x_vc=0.00916551f, K1_d_u1=0.31676565f, K1_d_u2=0.04019257f, K1_e_vo=-0.00576399f, K1_e_iL=-0.00019042f;
+__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=0.00437535f, K2_x_iL2=0.03192907f, K2_x_vc=0.00916551f, K2_d_u1=0.04019257f, K2_d_u2=0.31676565f, K2_e_vo=-0.00576399f, K2_e_iL=0.00019042f;
 
 
 
