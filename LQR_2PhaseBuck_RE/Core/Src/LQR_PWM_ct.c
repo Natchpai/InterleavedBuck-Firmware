@@ -28,6 +28,12 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 #define TICK_TO_DUTY  0.00007352941f
 
+#define a_vo 0.5
+#define a_iL 0.5
+#define b_vo
+#define b_iL
+
+
 // Gain Matrix
 __attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.06053420555455f, K1_x_iL2=-0.00073855637634f, K1_x_vc=-0.03433181611727f, K1_d_u1=0.61387074424668f, K1_d_u2=-0.00116035874281f, K1_e_vo=-0.00137383883056f, K1_e_iL=-0.00013840471874f;
 __attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00073855637634f, K2_x_iL2=0.06053420555455f, K2_x_vc=-0.03433181611727f, K2_d_u1=-0.00116035874282f, K2_d_u2=0.61387074424667f, K2_e_vo=-0.00137383883056f, K2_e_iL=0.00013840471874f;
@@ -68,9 +74,10 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float iL2_now 	= (ADC_iL2 	* GAIN_iL2) - i2_Offset;
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
-	iL1_filtered = (0.02f * iL1_now) + (0.98f * iL1_filtered);
-	iL2_filtered = (0.02f * iL2_now) + (0.98f * iL2_filtered);
-	vo_filtered  = (0.15f * vo_now)   + (0.85f * vo_filtered);
+	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
+	iL1_filtered = (0.5 * iL1_now) + (0.5 * iL1_filtered);
+	iL2_filtered = (0.5 * iL2_now) + (0.5 * iL2_filtered);
+	vo_filtered  = (0.3 * vo_now)  + (0.7 * vo_filtered);
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
