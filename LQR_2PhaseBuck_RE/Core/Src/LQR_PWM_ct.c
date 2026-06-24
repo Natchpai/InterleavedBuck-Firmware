@@ -16,7 +16,7 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define GAIN_vo 	0.0073260f  // (3/4095) * 10
 
 #define i1_Offset 	49.0f; // 1.65/0.033
-#define i2_Offset 	49.1f; // 1.65/0.033
+#define i2_Offset 	49.054f; // 1.65/0.033
 
 #define VREF 12.0f
 #define IREF 0.0f
@@ -28,19 +28,12 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 #define TICK_TO_DUTY  0.00007352941f
 
-#define a_vo 0.5
-#define a_iL 0.5
-#define b_vo
-#define b_iL
 
 
 // Gain Matrix
-__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.03192907f, K1_x_iL2=0.00437535f, K1_x_vc=0.00916551f, K1_d_u1=0.31676565f, K1_d_u2=0.04019257f, K1_e_vo=-0.00576399f, K1_e_iL=-0.00019042f;
-__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=0.00437535f, K2_x_iL2=0.03192907f, K2_x_vc=0.00916551f, K2_d_u1=0.04019257f, K2_d_u2=0.31676565f, K2_e_vo=-0.00576399f, K2_e_iL=0.00019042f;
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.01242952f, K1_x_iL2=0.00516451f, K1_x_vc=0.01060647f, K1_d_u1=0.12357633f, K1_d_u2=0.05065309f, K1_e_vo=-0.00647503f, K1_e_iL=-0.00015245f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00516451f, K2_x_iL2=0.01242952f, K2_x_vc=0.01060647f, K2_d_u1=0.05065309f, K2_d_u2=0.12357633f, K2_e_vo=-0.00647503f, K2_e_iL=0.00015245f;
 
-
-
-// Previous State Variable (n-1)
 typedef struct {
 	float iL1_prev;
 	float iL2_prev;
@@ -75,9 +68,10 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
 	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.5 * iL1_now) + (0.5 * iL1_filtered);
-	iL2_filtered = (0.5 * iL2_now) + (0.5 * iL2_filtered);
-	vo_filtered  = (0.3 * vo_now)  + (0.7 * vo_filtered);
+	iL1_filtered = (0.45 * iL1_now) + (0.55 * iL1_filtered);
+	iL2_filtered = (0.45 * iL2_now) + (0.55 * iL2_filtered);
+	vo_filtered  = (0.25 * vo_now)  + (0.75 * vo_filtered);
+
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
@@ -107,7 +101,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	int delta_ticks_1 = (int)(delta_u1_fb * 13600.0f);
 
-	if(delta_ticks_1 >= -2 && delta_ticks_1 <= 2) delta_ticks_1 = 0;
+//	if(delta_ticks_1 >= -1 && delta_ticks_1 <= 1) delta_ticks_1 = 0;
 
 	int cmp1_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR	+  delta_ticks_1;
 
@@ -117,7 +111,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	int delta_ticks_2 = (int)(delta_u2_fb * 13600.0f);
 
-	if(delta_ticks_2 >= -2 && delta_ticks_2 <= 2) delta_ticks_2 = 0;
+//	if(delta_ticks_2 >= -1 && delta_ticks_2 <= 1) delta_ticks_2 = 0;
 
 	int cmp2_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR	+  delta_ticks_2;
 
