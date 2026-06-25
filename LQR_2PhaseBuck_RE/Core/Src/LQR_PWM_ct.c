@@ -31,8 +31,9 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 
 // Gain Matrix
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.01242952f, K1_x_iL2=0.00516451f, K1_x_vc=0.01060647f, K1_d_u1=0.12357633f, K1_d_u2=0.05065309f, K1_e_vo=-0.00647503f, K1_e_iL=-0.00015245f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00516451f, K2_x_iL2=0.01242952f, K2_x_vc=0.01060647f, K2_d_u1=0.05065309f, K2_d_u2=0.12357633f, K2_e_vo=-0.00647503f, K2_e_iL=0.00015245f;
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02984711f, K1_x_iL2=0.00229339f, K1_x_vc=0.01043646f, K1_d_u1=0.29967563f, K1_d_u2=0.02310254f, K1_e_vo=-0.00586658f, K1_e_iL=-0.00019042f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00229339f, K2_x_iL2=0.02984711f, K2_x_vc=0.01043646f, K2_d_u1=0.02310254f, K2_d_u2=0.29967563f, K2_e_vo=-0.00586658f, K2_e_iL=0.00019042f;
+
 
 typedef struct {
 	float iL1_prev;
@@ -68,8 +69,8 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
 	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.45 * iL1_now) + (0.55 * iL1_filtered);
-	iL2_filtered = (0.45 * iL2_now) + (0.55 * iL2_filtered);
+	iL1_filtered = (0.35 * iL1_now) + (0.65 * iL1_filtered);
+	iL2_filtered = (0.35 * iL2_now) + (0.65 * iL2_filtered);
 	vo_filtered  = (0.25 * vo_now)  + (0.75 * vo_filtered);
 
 
