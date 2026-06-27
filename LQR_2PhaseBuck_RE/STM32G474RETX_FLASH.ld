@@ -75,12 +75,11 @@ SECTIONS
     *(.ccmram*)
     . = ALIGN(4);
      _eccmram = .;	 /* Marks the end of CCMRAM */
-     
-    
  } >CCMRAM AT> FLASH 
- 
-_siccmram = LOADADDR(.ccmram); /* Physical address in FLASH */ 
+_siccmram = LOADADDR(.ccmram); /* Physical address in FLASH */
+
  	/*CCMRAM */
+
 
 
 
