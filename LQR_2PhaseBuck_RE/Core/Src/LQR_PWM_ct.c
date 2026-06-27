@@ -23,16 +23,19 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 #define DUTYMAX 0.9f
 #define DUTYMIN 0.05f
-#define MAX_TICKS 12240 // 0.9  * 13600 = 12240
+#define MAX_TICKS 10000 // 0.9  * 13600 = 12240
 #define MIN_TICKS 680	// 0.05 * 13600
 
 #define TICK_TO_DUTY  0.00007352941f
-#define DEAD_BAND_CURRENT 0.5f
-#define DEAD_BAND_VOLTAGE 0.01f
+#define DEAD_BAND_CURRENT 0.25f
+#define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
 // Gain Matrix
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02984711f, K1_x_iL2=0.00229339f, K1_x_vc=0.01043646f, K1_d_u1=0.29967563f, K1_d_u2=0.02310254f, K1_e_vo=-0.00586658f, K1_e_iL=-0.00019042f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00229339f, K2_x_iL2=0.02984711f, K2_x_vc=0.01043646f, K2_d_u1=0.02310254f, K2_d_u2=0.29967563f, K2_e_vo=-0.00586658f, K2_e_iL=0.00019042f;
+//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02984711f, K1_x_iL2=0.00229339f, K1_x_vc=0.01043646f, K1_d_u1=0.29967563f, K1_d_u2=0.02310254f, K1_e_vo=-0.00586658f, K1_e_iL=-0.00019042f;
+//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00229339f, K2_x_iL2=0.02984711f, K2_x_vc=0.01043646f, K2_d_u1=0.02310254f, K2_d_u2=0.29967563f, K2_e_vo=-0.00586658f, K2_e_iL=0.00019042f;
+
+__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.05522441f, K1_x_iL2=-0.00229125f, K1_x_vc=-0.01932705f, K1_d_u1=0.56369740f, K1_d_u2=-0.01362148f, K1_e_vo=-0.00206582f, K1_e_iL=-0.00014513f;
+__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00229125f, K2_x_iL2=0.05522441f, K2_x_vc=-0.01932705f, K2_d_u1=-0.01362148f, K2_d_u2=0.56369740f, K2_e_vo=-0.00206582f, K2_e_iL=0.00014513f;
 
 
 typedef struct {
@@ -78,6 +81,24 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float iL2_now 	= (ADC_iL2 	* GAIN_iL2) - i2_Offset;
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
+
+	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
+//	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
+//	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
+//	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
+
+	iL1_filtered = (0.1f * iL1_now) + (0.9f * iL1_filtered);
+	iL2_filtered = (0.1f * iL2_now) + (0.9f * iL2_filtered);
+	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
+
+	// Delta of State Variable
+	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
+	float delta_iL2 	= 	iL2_filtered - lqr.iL2_prev;
+	float delta_vo 		= 	vo_filtered  - lqr.vo_prev;
+	float delta_d_u1 	= 	lqr.u1_prev - lqr.u1_prev_2;
+	float delta_d_u2 	= 	lqr.u2_prev - lqr.u2_prev_2;
+
+
 //	if (delta_iL1 < DEAD_BAND_CURRENT && delta_iL1 > -DEAD_BAND_CURRENT) {
 //		delta_iL1 = 0.0f;
 //	}
@@ -90,30 +111,18 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 //		delta_vo  = 0.0f;
 //	}
 
-	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.3f * iL1_now) + (0.7f * iL1_filtered);
-	iL2_filtered = (0.3f * iL2_now) + (0.7f * iL2_filtered);
-	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
-
-
-	// Delta of State Variable
-	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
-	float delta_iL2 	= 	iL2_filtered - lqr.iL2_prev;
-	float delta_vo 		= 	vo_filtered  - lqr.vo_prev;
-	float delta_d_u1 	= 	lqr.u1_prev - lqr.u1_prev_2;
-	float delta_d_u2 	= 	lqr.u2_prev - lqr.u2_prev_2;
-
-
-
 	// Integral Action (Error)
 	lqr.e_vo = VREF - vo_filtered;
 
 
 	lqr.e_iL = IREF - (iL1_filtered  - iL2_filtered);
 
-	if (lqr.e_iL < 0.5f && lqr.e_iL > -0.5f) {
+	if (lqr.e_iL < 0.25f && lqr.e_iL > -0.25f) {
 		lqr.e_iL  = 0.0f;
 	}
+
+
+
 
 	float delta_u1_fb = -( (K1_x_iL1 * delta_iL1) + (K1_x_iL2 * delta_iL2) + (K1_x_vc * delta_vo)
 						  +(K1_d_u1 * delta_d_u1 ) +  (K1_d_u2 * delta_d_u2)
