@@ -23,7 +23,7 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 #define DUTYMAX 0.9f
 #define DUTYMIN 0.05f
-#define MAX_TICKS 10000 // 0.9  * 13600 = 12240
+#define MAX_TICKS 12240 // 0.9  * 13600 = 12240
 #define MIN_TICKS 680	// 0.05 * 13600
 
 #define TICK_TO_DUTY  0.00007352941f
@@ -34,9 +34,13 @@ extern HRTIM_HandleTypeDef hhrtim1;
 //__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02984711f, K1_x_iL2=0.00229339f, K1_x_vc=0.01043646f, K1_d_u1=0.29967563f, K1_d_u2=0.02310254f, K1_e_vo=-0.00586658f, K1_e_iL=-0.00019042f;
 //__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00229339f, K2_x_iL2=0.02984711f, K2_x_vc=0.01043646f, K2_d_u1=0.02310254f, K2_d_u2=0.29967563f, K2_e_vo=-0.00586658f, K2_e_iL=0.00019042f;
 
-__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.05522441f, K1_x_iL2=-0.00229125f, K1_x_vc=-0.01932705f, K1_d_u1=0.56369740f, K1_d_u2=-0.01362148f, K1_e_vo=-0.00206582f, K1_e_iL=-0.00014513f;
-__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00229125f, K2_x_iL2=0.05522441f, K2_x_vc=-0.01932705f, K2_d_u1=-0.01362148f, K2_d_u2=0.56369740f, K2_e_vo=-0.00206582f, K2_e_iL=0.00014513f;
+// [8000,8000,5,0,0,20,0.1] R1e6 ai0.1 av0.3
+//__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.05522441f, K1_x_iL2=-0.00229125f, K1_x_vc=-0.01932705f, K1_d_u1=0.56369740f, K1_d_u2=-0.01362148f, K1_e_vo=-0.00206582f, K1_e_iL=-0.00014513f;
+//__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00229125f, K2_x_iL2=0.05522441f, K2_x_vc=-0.01932705f, K2_d_u1=-0.01362148f, K2_d_u2=0.56369740f, K2_e_vo=-0.00206582f, K2_e_iL=0.00014513f;
 
+//Q[8000, 8000, 10, 0, 0, 50, 0.100000]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.05138294f, K1_x_iL2=-0.00069244f, K1_x_vc=0.00072436f, K1_d_u1=0.65051485f, K1_d_u2=-0.00287449f, K1_e_vo=-0.00292652f, K1_e_iL=-0.00013134f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00069244f, K2_x_iL2=0.05138294f, K2_x_vc=0.00072436f, K2_d_u1=-0.00287449f, K2_d_u2=0.65051485f, K2_e_vo=-0.00292652f, K2_e_iL=0.00013134f;
 
 typedef struct {
 	float iL1_prev;
@@ -87,9 +91,9 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 //	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
 //	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
 
-	iL1_filtered = (0.1f * iL1_now) + (0.9f * iL1_filtered);
-	iL2_filtered = (0.1f * iL2_now) + (0.9f * iL2_filtered);
-	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
+	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
+	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
+	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
