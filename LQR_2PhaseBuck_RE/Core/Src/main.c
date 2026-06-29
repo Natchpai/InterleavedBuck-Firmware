@@ -220,7 +220,7 @@ void SYSTEM_PowerOn(void) {
 
 	HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 
-	for (uint8_t i=0; i<3; i++) {
+	for (uint8_t i=0; i<2; i++) {
 		GPIOC->BSRR = (1U << 2);
 		HAL_Delay(200);
 		GPIOC->BSRR = (1U << (2 + 16));
