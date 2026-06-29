@@ -15,16 +15,16 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define GAIN_iL2 	0.0222000222f // (3/4095) * 1/0.033
 #define GAIN_vo 	0.0073260f  // (3/4095) * 10
 
-#define i1_Offset 	49.0f; // 1.65/0.033
-#define i2_Offset 	49.054f; // 1.65/0.033
+#define i1_Offset 	50.0f; // 1.65/0.033
+#define i2_Offset 	50.0f; // 1.65/0.033
 
 #define VREF 12.0f
 #define IREF 0.0f
 
 #define DUTYMAX 0.9f
-#define DUTYMIN 0.05f
+#define DUTYMIN 0.01f
 #define MAX_TICKS 12240 // 0.9  * 13600 = 12240
-#define MIN_TICKS 680	// 0.05 * 13600
+#define MIN_TICKS 136	// 0.01 * 13600
 
 #define TICK_TO_DUTY  0.00007352941f
 #define DEAD_BAND_CURRENT 0.25f
@@ -38,9 +38,9 @@ extern HRTIM_HandleTypeDef hhrtim1;
 //__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.05522441f, K1_x_iL2=-0.00229125f, K1_x_vc=-0.01932705f, K1_d_u1=0.56369740f, K1_d_u2=-0.01362148f, K1_e_vo=-0.00206582f, K1_e_iL=-0.00014513f;
 //__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00229125f, K2_x_iL2=0.05522441f, K2_x_vc=-0.01932705f, K2_d_u1=-0.01362148f, K2_d_u2=0.56369740f, K2_e_vo=-0.00206582f, K2_e_iL=0.00014513f;
 
-//Q[8000, 8000, 10, 0, 0, 50, 0.100000]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.05138294f, K1_x_iL2=-0.00069244f, K1_x_vc=0.00072436f, K1_d_u1=0.65051485f, K1_d_u2=-0.00287449f, K1_e_vo=-0.00292652f, K1_e_iL=-0.00013134f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00069244f, K2_x_iL2=0.05138294f, K2_x_vc=0.00072436f, K2_d_u1=-0.00287449f, K2_d_u2=0.65051485f, K2_e_vo=-0.00292652f, K2_e_iL=0.00013134f;
+//Q[40000, 40000, 50, 1, 1, 300, 0.100000] R[1000000, 1000000]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.05880350f, K1_x_iL2=0.00100889f, K1_x_vc=-0.00280607f, K1_d_u1=0.92314672f, K1_d_u2=0.01585966f, K1_e_vo=-0.00349192f, K1_e_iL=-0.00006566f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00100889f, K2_x_iL2=0.05880350f, K2_x_vc=-0.00280607f, K2_d_u1=0.01585966f, K2_d_u2=0.92314672f, K2_e_vo=-0.00349192f, K2_e_iL=0.00006566f;
 
 typedef struct {
 	float iL1_prev;
@@ -67,7 +67,7 @@ __attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0};
 //__attribute__((section(".ccmram.data"))) static float lqr.e_iL;
 
 // Filter Variable
-__attribute__((section(".ccmram.data"))) static float vo_filtered = VREF;
+__attribute__((section(".ccmram.data"))) static float vo_filtered = 0.1f;
 __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL2_filtered = 0.0f;
 
@@ -91,9 +91,9 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 //	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
 //	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
 
-	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
-	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
-	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
+	iL1_filtered = (0.2f * iL1_now) + (0.8f * iL1_filtered);
+	iL2_filtered = (0.2f * iL2_now) + (0.8f * iL2_filtered);
+	vo_filtered  = (0.95f * vo_now)  + (0.05f * vo_filtered);
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
@@ -138,25 +138,38 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 
 
-	int delta_ticks_1 = (int)((delta_u1_fb * 13600.0f) + 0.5f);
+//	int delta_ticks_1 = (int)((delta_u1_fb * 13600.0f) + 0.5f);
+//
+////	if(delta_ticks_1 >= -28 && delta_ticks_1 <= 28) delta_ticks_1 = 0;
+//
+//	int cmp1_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR	+  delta_ticks_1;
+//
+//	if(cmp1_val > MAX_TICKS) cmp1_val = MAX_TICKS; else if(cmp1_val < MIN_TICKS) cmp1_val = MIN_TICKS;
+//	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = cmp1_val;
+//
+//
+//	int delta_ticks_2 = (int)((delta_u2_fb * 13600.0f) + 0.5f);
+//
+////	if(delta_ticks_2 >= -28 && delta_ticks_2 <= 28) delta_ticks_2 = 0;
+//
+//	int cmp2_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR	+  delta_ticks_2;
+//
+//
+//	if(cmp2_val > MAX_TICKS) cmp2_val = MAX_TICKS; else if(cmp2_val < MIN_TICKS) cmp2_val = MIN_TICKS;
+//	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = cmp2_val;
 
-//	if(delta_ticks_1 >= -28 && delta_ticks_1 <= 28) delta_ticks_1 = 0;
 
-	int cmp1_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR	+  delta_ticks_1;
+	 float u1_now = (delta_u1_fb) + lqr.u1_prev;
+	 float u2_now = (delta_u2_fb) + lqr.u2_prev;
 
-	if(cmp1_val > MAX_TICKS) cmp1_val = MAX_TICKS; else if(cmp1_val < MIN_TICKS) cmp1_val = MIN_TICKS;
-	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = cmp1_val;
-
-
-	int delta_ticks_2 = (int)((delta_u2_fb * 13600.0f) + 0.5f);
-
-//	if(delta_ticks_2 >= -28 && delta_ticks_2 <= 28) delta_ticks_2 = 0;
-
-	int cmp2_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR	+  delta_ticks_2;
+//	 Update Duty cycle
+	 if(u1_now > DUTYMAX) u1_now = DUTYMAX; else if(u1_now < DUTYMIN) u1_now = DUTYMIN;
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 13600.0f * u1_now;
 
 
-	if(cmp2_val > MAX_TICKS) cmp2_val = MAX_TICKS; else if(cmp2_val < MIN_TICKS) cmp2_val = MIN_TICKS;
-	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = cmp2_val;
+	 if(u2_now > DUTYMAX) u2_now = DUTYMAX; else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * u2_now;
+
 
 
 //	DAC1->DHR12R1 = (uint32_t)(1241.0f * i);
@@ -171,8 +184,10 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	lqr.u1_prev_2	= lqr.u1_prev; 		// u1(n-2) =  u1(n-1)
 	lqr.u2_prev_2	= lqr.u2_prev;		// u2(n-2) =  u2(n-1)
-	lqr.u1_prev     = (float)cmp1_val * TICK_TO_DUTY;
-	lqr.u2_prev     = (float)cmp2_val * TICK_TO_DUTY;
+//	lqr.u1_prev     = (float)cmp1_val * TICK_TO_DUTY;
+//	lqr.u2_prev     = (float)cmp2_val * TICK_TO_DUTY;
+	lqr.u1_prev 	= u1_now;
+	lqr.u2_prev 	= u2_now;
 
 }
 
@@ -188,7 +203,7 @@ void LQR_Reset(){
 	lqr.e_vo		= 0.0f;;
 	lqr.e_iL		= 0.0f;;
 
-	vo_filtered = VREF;
+	vo_filtered = 0.1;
 	iL1_filtered = 0.0f;
 	iL2_filtered = 0.0f;
 
