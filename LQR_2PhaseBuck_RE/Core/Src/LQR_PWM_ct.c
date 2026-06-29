@@ -31,16 +31,9 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
 // Gain Matrix
-//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02984711f, K1_x_iL2=0.00229339f, K1_x_vc=0.01043646f, K1_d_u1=0.29967563f, K1_d_u2=0.02310254f, K1_e_vo=-0.00586658f, K1_e_iL=-0.00019042f;
-//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00229339f, K2_x_iL2=0.02984711f, K2_x_vc=0.01043646f, K2_d_u1=0.02310254f, K2_d_u2=0.29967563f, K2_e_vo=-0.00586658f, K2_e_iL=0.00019042f;
 
-// [8000,8000,5,0,0,20,0.1] R1e6 ai0.1 av0.3
-//__attribute__((section(".ccmram.rodata"))) const float K1_x_iL1=0.05522441f, K1_x_iL2=-0.00229125f, K1_x_vc=-0.01932705f, K1_d_u1=0.56369740f, K1_d_u2=-0.01362148f, K1_e_vo=-0.00206582f, K1_e_iL=-0.00014513f;
-//__attribute__((section(".ccmram.rodata"))) const float K2_x_iL1=-0.00229125f, K2_x_iL2=0.05522441f, K2_x_vc=-0.01932705f, K2_d_u1=-0.01362148f, K2_d_u2=0.56369740f, K2_e_vo=-0.00206582f, K2_e_iL=0.00014513f;
-
-//Q[40000, 40000, 50, 1, 1, 300, 0.100000] R[1000000, 1000000]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.05880350f, K1_x_iL2=0.00100889f, K1_x_vc=-0.00280607f, K1_d_u1=0.92314672f, K1_d_u2=0.01585966f, K1_e_vo=-0.00349192f, K1_e_iL=-0.00006566f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00100889f, K2_x_iL2=0.05880350f, K2_x_vc=-0.00280607f, K2_d_u1=0.01585966f, K2_d_u2=0.92314672f, K2_e_vo=-0.00349192f, K2_e_iL=0.00006566f;
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00106655f, K1_x_iL2=-0.00243683f, K1_x_vc=-0.05289696f, K1_d_u1=0.53512512f, K1_d_u2=-0.02351923f, K1_e_vo=-0.00035007f, K1_e_iL=-0.00003073f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00028299f, K2_x_iL2=0.04951713f, K2_x_vc=-0.00374246f, K2_d_u1=0.08601511f, K2_d_u2=0.77788244f, K2_e_vo=-0.00334175f, K2_e_iL=0.00034653f;
 
 typedef struct {
 	float iL1_prev;
@@ -91,9 +84,9 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 //	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
 //	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
 
-	iL1_filtered = (0.2f * iL1_now) + (0.8f * iL1_filtered);
-	iL2_filtered = (0.2f * iL2_now) + (0.8f * iL2_filtered);
-	vo_filtered  = (0.95f * vo_now)  + (0.05f * vo_filtered);
+	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
+	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
+	vo_filtered  = (0.9f * vo_now)  + (0.1f * vo_filtered);
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
@@ -121,7 +114,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	lqr.e_iL = IREF - (iL1_filtered  - iL2_filtered);
 
-	if (lqr.e_iL < 0.25f && lqr.e_iL > -0.25f) {
+	if (lqr.e_iL < 0.1f && lqr.e_iL > -0.1f) {
 		lqr.e_iL  = 0.0f;
 	}
 
