@@ -21,8 +21,8 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define VREF 12.0f
 #define IREF 0.0f
 
-#define DUTYMAX 0.9f
-#define DUTYMIN 0.01f
+#define DUTYMAX 0.90f
+#define DUTYMIN 0.05f
 #define MAX_TICKS 12240 // 0.9  * 13600 = 12240
 #define MIN_TICKS 136	// 0.01 * 13600
 
@@ -32,8 +32,22 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_DUTY 0.002f
 // Gain Matrix
 
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00106655f, K1_x_iL2=-0.00243683f, K1_x_vc=-0.05289696f, K1_d_u1=0.53512512f, K1_d_u2=-0.02351923f, K1_e_vo=-0.00035007f, K1_e_iL=-0.00003073f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00028299f, K2_x_iL2=0.04951713f, K2_x_vc=-0.00374246f, K2_d_u1=0.08601511f, K2_d_u2=0.77788244f, K2_e_vo=-0.00334175f, K2_e_iL=0.00034653f;
+
+//// Configuration Parameters: Q[2000,2000,1.000000e-01,0,0,100,1] R[1000000,1000000]
+//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00383592f, K1_x_iL2=-0.00143749f, K1_x_vc=-0.05527144f, K1_d_u1=0.69025140f, K1_d_u2=-0.00398103f, K1_e_vo=-0.00106450f, K1_e_iL=-0.00009514f;
+//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00040887f, K2_x_iL2=0.03587608f, K2_x_vc=0.00827119f, K2_d_u1=0.00565186f, K2_d_u2=0.52892285f, K2_e_vo=-0.00455090f, K2_e_iL=0.00053209f;
+
+
+
+// Configuration Parameters: Q[5000,5000,1.000000e-01,0,0,100,1] R[1000000,1000000]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00394221f, K1_x_iL2=-0.00164685f, K1_x_vc=-0.05970782f, K1_d_u1=0.71969975f, K1_d_u2=-0.00623324f, K1_e_vo=-0.00069585f, K1_e_iL=-0.00006464f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00046083f, K2_x_iL2=0.04497704f, K2_x_vc=0.00243939f, K2_d_u1=-0.00714663f, K2_d_u2=0.66908762f, K2_e_vo=-0.00393212f, K2_e_iL=0.00043879f;
+
+
+//// Configuration Parameters: Q[10000,10000,1.000000e-01,0,0,100,1] R[1000000,1000000]
+//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00397912f, K1_x_iL2=-0.00177029f, K1_x_vc=-0.06220938f, K1_d_u1=0.73275479f, K1_d_u2=-0.00755669f, K1_e_vo=-0.00049979f, K1_e_iL=-0.00004731f;
+//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00054049f, K2_x_iL2=0.05148769f, K2_x_vc=-0.00427250f, K2_d_u1=-0.01981991f, K2_d_u2=0.77045226f, K2_e_vo=-0.00333187f, K2_e_iL=0.00036160f;
+
 
 typedef struct {
 	float iL1_prev;
