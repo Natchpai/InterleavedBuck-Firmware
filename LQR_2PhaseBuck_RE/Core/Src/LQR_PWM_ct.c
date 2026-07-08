@@ -30,6 +30,9 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_CURRENT 0.25f
 #define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
+
+uint8_t dutyCounts = 0;
+
 // Gain Matrix
 
 // Configuration Parameters: Q[8000,8000,1.000000e-01,0,0,150,1] R[1000000,1000000]
@@ -175,11 +178,21 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	 float u2_now = (delta_u2_fb) + lqr.u2_prev;
 
 //	 Update Duty cycle
-	 if(u1_now > DUTYMAX) u1_now = DUTYMAX; else if(u1_now < DUTYMIN) u1_now = DUTYMIN;
+	 if(u1_now > DUTYMAX) {
+		 u1_now = DUTYMAX;
+		 dutyCounts++;
+		 if(dutyCounts >= 100) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
+	 } else if(u1_now < DUTYMIN) u1_now = DUTYMIN;
+
 	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 13600.0f * u1_now;
 
 
-	 if(u2_now > DUTYMAX) u2_now = DUTYMAX; else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
+	 if(u2_now > DUTYMAX)  {
+		 u2_now = DUTYMAX;
+		 dutyCounts++;
+		 if(dutyCounts >= 100) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
+	 } else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
+
 	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * u2_now;
 
 
