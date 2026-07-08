@@ -17,5 +17,6 @@ void LQR_Stop();
 void LQR_FaultStop();
 void LQR_execute(void);
 
+void HTRIM_FAULT_HANDLER();
 
 #endif /* INC_LQR_PWM_CT_H_ */
