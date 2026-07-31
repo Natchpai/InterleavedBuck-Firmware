@@ -53,7 +53,7 @@ typedef enum {
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define VIN_MIN_THRESHOLD 2020 		// ( 4095/(10*3) ) * 14.8
+#define VIN_MIN_THRESHOLD 1911		// ( 4095/(10*3) ) * Vin_min = 136.5 * 14 = 1911
 
 /* USER CODE END PM */
 
