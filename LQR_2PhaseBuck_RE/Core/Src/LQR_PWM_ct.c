@@ -21,7 +21,6 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define VREF 12.0f
 #define IREF 0.0f
 
-#define DUTYMAX 0.90f
 #define DUTYMIN 0.05f
 #define MAX_TICKS 12240 // 0.9  * 13600 = 12240
 #define MIN_TICKS 136	// 0.01 * 13600
