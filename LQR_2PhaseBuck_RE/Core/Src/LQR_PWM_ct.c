@@ -32,19 +32,16 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_DUTY 0.002f
 
 uint8_t dutyCounts = 0;
+uint8_t softStart_status = 0;
 
 // Gain Matrix
 
-//// Configuration Parameters: Q[2000,2000,1.000000e-01,0,0,100,1] R[1000000,1000000]
 
-//// Configuration Parameters: Q[8000,8000,1.000000e-01,0,0,150,1] R[1000000,1000000] // Fractional Asymmetric Delay
-//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00448061f, K1_x_iL2=-0.00102469f, K1_x_vc=-0.06146726f, K1_d_u1=0.77661854f, K1_d_u2=-0.00238679f, K1_e_vo=-0.00066778f, K1_e_iL=-0.00005106f;
-//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00019886f, K2_x_iL2=0.05024772f, K2_x_vc=0.01197523f, K2_d_u1=0.01106382f, K2_d_u2=0.74624310f, K2_e_vo=-0.00426314f, K2_e_iL=0.00038998f;
+// Configuration Parameters: Q[5000,5000,1,1,1,150,1] R[1000000,1000000]
+// Configuration System: [25,12,1.000000e-06,8.000000e-06,1.300000e-04,1.500000e-02,1.000000e-02]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00495471f, K1_x_iL2=-0.00234481f, K1_x_vc=-0.05353924f, K1_d_u1=0.77132953f, K1_d_u2=-0.02115063f, K1_e_vo=-0.00105437f, K1_e_iL=-0.00008125f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00051010f, K2_x_iL2=0.04326496f, K2_x_vc=0.00229299f, K2_d_u1=0.05532365f, K2_d_u2=0.67784558f, K2_e_vo=-0.00489037f, K2_e_iL=0.00042054f;
 
-// Configuration Parameters: Q[8000,8000,1.000000e-01,0,0,150,1] R[1000000,1000000]
-// Configuration System: [25,12,1.000000e-06,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-02]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00490326f, K1_x_iL2=-0.00239434f, K1_x_vc=-0.05520989f, K1_d_u1=0.76864692f, K1_d_u2=-0.01713226f, K1_e_vo=-0.00084040f, K1_e_iL=-0.00006460f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00112748f, K2_x_iL2=0.05488796f, K2_x_vc=0.01217776f, K2_d_u1=0.11043368f, K2_d_u2=0.68515211f, K2_e_vo=-0.00483663f, K2_e_iL=0.00041933f;
 
 
 typedef struct {
@@ -72,10 +69,10 @@ __attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0};
 //__attribute__((section(".ccmram.data"))) static float lqr.e_iL;
 
 // Filter Variable
-__attribute__((section(".ccmram.data"))) static float vo_filtered = 0.1f;
+__attribute__((section(".ccmram.data"))) static float vo_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL2_filtered = 0.0f;
-
+__attribute__((section(".ccmram.data"))) static float VREF_soft = 0.0f;
 
 __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
@@ -92,13 +89,16 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 
 	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-//	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
-//	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
-//	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
-
 	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
 	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
-	vo_filtered  = (0.9f * vo_now)  + (0.1f * vo_filtered);
+	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
+
+//	iL1_filtered = (0.5f * iL1_now) + (0.5f * iL1_filtered);
+//	iL2_filtered = (0.5f * iL2_now) + (0.5f * iL2_filtered);
+//	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
+//	iL1_filtered = iL1_now;
+//	iL2_filtered = iL2_now;
+//	vo_filtered = vo_now;
 
 	// Delta of State Variable
 	float delta_iL1 	= 	iL1_filtered - lqr.iL1_prev;
@@ -108,23 +108,24 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float delta_d_u2 	= 	lqr.u2_prev - lqr.u2_prev_2;
 
 
-//	if (delta_iL1 < DEAD_BAND_CURRENT && delta_iL1 > -DEAD_BAND_CURRENT) {
-//		delta_iL1 = 0.0f;
-//	}
-//
-//	if (delta_iL2 < DEAD_BAND_CURRENT && delta_iL2 > -DEAD_BAND_CURRENT) {
-//		delta_iL2 = 0.0f;
-//	}
+	// Softstart function
+	if(softStart_status == 1){
 
-//	if (delta_iL2 < DEAD_BAND_VOLTAGE && delta_iL2 > -DEAD_BAND_VOLTAGE) {
-//		delta_vo  = 0.0f;
-//	}
+	   VREF_soft = (VREF * 0.0049875f) + (VREF_soft * 0.9950125f); // 5ms settling
+	   lqr.e_vo = VREF_soft - vo_filtered;
 
-	// Integral Action (Error)
-	lqr.e_vo = VREF - vo_filtered;
+	   if(VREF_soft >= (0.995f * VREF)) {
+		   softStart_status = 0;
+	    }
+
+	}
+	else {
+		lqr.e_vo = VREF - vo_filtered;
+	}
 
 
 	lqr.e_iL = IREF - (iL1_filtered  - iL2_filtered);
+//	lqr.e_iL = 0.0f;
 
 	if (lqr.e_iL < 0.1f && lqr.e_iL > -0.1f) {
 		lqr.e_iL  = 0.0f;
@@ -140,7 +141,6 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float delta_u2_fb = -( (K2_x_iL1 * delta_iL1) + (K2_x_iL2 * delta_iL2) + (K2_x_vc * delta_vo)
 						  +(K2_d_u1 * delta_d_u1 ) +  (K2_d_u2 * delta_d_u2)
 						  +(K2_e_vo * lqr.e_vo) + (K2_e_iL * lqr.e_iL));
-
 
 
 //	int delta_ticks_1 = (int)((delta_u1_fb * 13600.0f) + 0.5f);
@@ -221,6 +221,9 @@ void LQR_Reset(){
 	vo_filtered = 0.1;
 	iL1_filtered = 0.0f;
 	iL2_filtered = 0.0f;
+	VREF_soft = 0.0f;
+
+	softStart_status = 1;
 
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = MIN_TICKS;
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = MIN_TICKS;
