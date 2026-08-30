@@ -21,12 +21,14 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define VREF 12.0f
 #define IREF 0.0f
 
+#define TO_DUTY 13600.0f
+
 #define DUTYMAX 0.93f
 #define DUTYMIN 0.05f
 #define MAX_TICKS 12240 // 0.9  * 13600 = 12240
 #define MIN_TICKS 680	// 0.05 * 13600
 
-#define TICK_TO_DUTY  0.00007352941f
+#define TICK_TO_DUTY  0.00007352941f  //0.00007352941f
 #define DEAD_BAND_CURRENT 0.25f
 #define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
@@ -134,7 +136,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 		 if(dutyCounts >= 1000) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
 	 } else if(u1_now < DUTYMIN) u1_now = DUTYMIN;
 
-	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 13600.0f * u1_now;
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = TO_DUTY * u1_now;
 
 
 	 if(u2_now > DUTYMAX)  {
@@ -143,7 +145,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 		 if(dutyCounts >= 1000) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
 	 } else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
 
-	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * u2_now;
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = TO_DUTY * u2_now;
 
 //	DAC1->DHR12R1 = (uint32_t)(1241.0f * i);
 
