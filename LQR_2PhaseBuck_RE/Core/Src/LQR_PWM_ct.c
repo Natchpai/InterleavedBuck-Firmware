@@ -109,7 +109,6 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	   if(VREF_soft >= (0.9999f * VREF)) {
 		   softStart_status = 0;
 	    }
-
 	}
 	else {
 		lqr.e_vo = VREF - vo_filtered;
