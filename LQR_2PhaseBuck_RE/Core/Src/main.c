@@ -120,9 +120,10 @@ void HTRIM_FAULT_HANDLER(void) {
   GPIOA->BSRR = (1U << (10 + 16) ); 	// Disable Phase 1
 	GPIOC->BSRR = (1U << (9 + 16) ); 	// Disable Phase 2
 
+	STATE = STATE_FAULT;
+
 	LQR_FaultStop();
 
-	STATE = STATE_FAULT;
 
 	GPIOC->BSRR = (1U << (0 + 16) ); // LED_IDLE set to Low
 	GPIOC->BSRR = (1U << (1 + 16) ); // LED_RUN set to Low
@@ -223,7 +224,7 @@ void SYSTEM_PowerOn(void) {
 
 	HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 
-	for (uint8_t i=0; i<2; i++) {
+	for (uint8_t i=0; i<1; i++) {
 		GPIOC->BSRR = (1U << 2);
 		HAL_Delay(200);
 		GPIOC->BSRR = (1U << (2 + 16));
@@ -587,7 +588,7 @@ static void MX_ADC3_Init(void)
   */
   sConfigInjected.InjectedChannel = ADC_CHANNEL_1;
   sConfigInjected.InjectedRank = ADC_INJECTED_RANK_1;
-  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_12CYCLES_5;
   sConfigInjected.InjectedSingleDiff = ADC_SINGLE_ENDED;
   sConfigInjected.InjectedOffsetNumber = ADC_OFFSET_NONE;
   sConfigInjected.InjectedOffset = 0;
