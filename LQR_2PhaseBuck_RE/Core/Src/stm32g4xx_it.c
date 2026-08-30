@@ -241,13 +241,15 @@ void EXTI15_10_IRQHandler(void)
 __attribute__((section(".ccmram.text"))) void ADC3_IRQHandler(void)
 {
   /* USER CODE BEGIN ADC3_IRQn 0 */
+//	__attribute__((section(".ccmram.text"))) void ADC3_IRQHandler(void)
+
 	if (ADC3->ISR & ADC_ISR_JEOC) {
 		GPIOC->BSRR = (1U << 12); // SET PC12
 		LQR_execute();
 //		 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 13600.0f * 0.35f;
 //		 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * 0.35f;
-		ADC3->ISR |= ADC_ISR_JEOC;	  // End of Conversion
-		//	 ADC3->ISR |= ADC_ISR_JEOS; // End of sequense
+		ADC3->ISR = ADC_ISR_JEOC;	    // Injection End of Conversion (rc_w1) clear flag
+		//	 ADC3->ISR = ADC_ISR_JEOS; // Injection End of Sequense (rc_w1) clear flag
 		GPIOC->BSRR = (1U << (12 + 16)); // RESET PC12
 		return;
 	}
