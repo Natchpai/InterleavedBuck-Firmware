@@ -485,17 +485,6 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
 
     /* USER CODE END DAC3_MspInit 1 */
   }
-  else if(hdac->Instance==DAC4)
-  {
-    /* USER CODE BEGIN DAC4_MspInit 0 */
-
-    /* USER CODE END DAC4_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_DAC4_CLK_ENABLE();
-    /* USER CODE BEGIN DAC4_MspInit 1 */
-
-    /* USER CODE END DAC4_MspInit 1 */
-  }
 
 }
 
@@ -551,17 +540,6 @@ void HAL_DAC_MspDeInit(DAC_HandleTypeDef* hdac)
     /* USER CODE BEGIN DAC3_MspDeInit 1 */
 
     /* USER CODE END DAC3_MspDeInit 1 */
-  }
-  else if(hdac->Instance==DAC4)
-  {
-    /* USER CODE BEGIN DAC4_MspDeInit 0 */
-
-    /* USER CODE END DAC4_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_DAC4_CLK_DISABLE();
-    /* USER CODE BEGIN DAC4_MspDeInit 1 */
-
-    /* USER CODE END DAC4_MspDeInit 1 */
   }
 
 }
