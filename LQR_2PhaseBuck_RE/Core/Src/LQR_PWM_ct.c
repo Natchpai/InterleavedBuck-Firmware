@@ -37,10 +37,10 @@ uint8_t softStart_status = 0;
 // Gain Matrix
 
 
-// Configuration Parameters: Q[5000,5000,1,1,1,150,1] R[1000000,1000000]
+// Configuration Parameters: Q[5000,5000,1,1,1,100,7] R[2000000,2000000]
 // Configuration System: [25,12,1.000000e-06,8.000000e-06,1.300000e-04,1.500000e-02,1.000000e-02]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00495471f, K1_x_iL2=-0.00234481f, K1_x_vc=-0.05353924f, K1_d_u1=0.77132953f, K1_d_u2=-0.02115063f, K1_e_vo=-0.00105437f, K1_e_iL=-0.00008125f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00051010f, K2_x_iL2=0.04326496f, K2_x_vc=0.00229299f, K2_d_u1=0.05532365f, K2_d_u2=0.67784558f, K2_e_vo=-0.00489037f, K2_e_iL=0.00042054f;
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00492955f, K1_x_iL2=-0.00268384f, K1_x_vc=-0.05438196f, K1_d_u1=0.77020510f, K1_d_u2=-0.02621091f, K1_e_vo=-0.00084489f, K1_e_iL=-0.00021191f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00049150f, K2_x_iL2=0.03609094f, K2_x_vc=-0.00340130f, K2_d_u1=-0.05894857f, K2_d_u2=0.56715452f, K2_e_vo=-0.00333798f, K2_e_iL=0.00088787f;
 
 
 
@@ -74,6 +74,9 @@ __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL2_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float VREF_soft = 0.0f;
 
+//__attribute__((section(".ccmram.data"))) static float vo_notch1 = 0.0f;
+//__attribute__((section(".ccmram.data"))) static float vo_notch2 = 0.0f;
+
 __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	GPIOD->BSRR = (1U << 2); // SET PD2
@@ -89,9 +92,11 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 
 	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.25f * iL1_now) + (0.75f * iL1_filtered);
-	iL2_filtered = (0.25f * iL2_now) + (0.75f * iL2_filtered);
-	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
+	iL1_filtered = (0.2f * iL1_now) + (0.8f * iL1_filtered);
+	iL2_filtered = (0.2f * iL2_now) + (0.8f * iL2_filtered);
+	vo_filtered  = (0.9f * vo_now)  + (0.1f * vo_filtered);
+
+//	vo_filtered = (1.644265f * vo_now) + (-2.288533f * vo_notch1) + (1.644265f * vo_notch2);
 
 //	iL1_filtered = (0.5f * iL1_now) + (0.5f * iL1_filtered);
 //	iL2_filtered = (0.5f * iL2_now) + (0.5f * iL2_filtered);
@@ -196,6 +201,9 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	lqr.iL1_prev 	= iL1_filtered ;		// iL1(n-1) = iL1(n)
 	lqr.iL2_prev 	= iL2_filtered ;		// iL2(n-1) = iL2(n)
 	lqr.vo_prev     = vo_filtered;
+//
+//	vo_notch2 = vo_notch1;
+//	vo_notch1 = vo_now;
 
 	lqr.u1_prev_2	= lqr.u1_prev; 		// u1(n-2) =  u1(n-1)
 	lqr.u2_prev_2	= lqr.u2_prev;		// u2(n-2) =  u2(n-1)
@@ -225,6 +233,9 @@ void LQR_Reset(){
 
 	softStart_status = 1;
 
+//	vo_notch1 = 0.0f;
+//	vo_notch2 = 0.0f;
+
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = MIN_TICKS;
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = MIN_TICKS;
 }
@@ -247,7 +258,7 @@ void LQR_Start() {
 
 
 	if (ADC3->ISR & ADC_ISR_JEOC) {
-		ADC3->ISR |= ADC_ISR_JEOC; // Injected End of Conversion Flag
+		ADC3->ISR = ADC_ISR_JEOC; // Injected End of Conversion Flag
 	}
 	ADC3->IER |= ADC_IER_JEOCIE; // Injected End of Conversion Interrupt Enable
 
