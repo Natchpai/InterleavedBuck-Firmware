@@ -15,8 +15,8 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define GAIN_iL2 	0.0222000222f // (3/4095) * 1/0.033
 #define GAIN_vo 	0.0073260f  // (3/4095) * 10
 
-#define i1_Offset 	50.0f; // 1.65/0.033
-#define i2_Offset 	50.0f; // 1.65/0.033
+#define i1_Offset 	49.9f; // 1.65/0.033
+#define i2_Offset 	49.9f; // 1.65/0.033
 
 #define VREF 12.0f
 #define IREF 0.0f
@@ -24,24 +24,21 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DUTYMAX 0.93f
 #define DUTYMIN 0.05f
 #define MAX_TICKS 12240 // 0.9  * 13600 = 12240
-#define MIN_TICKS 136	// 0.01 * 13600
+#define MIN_TICKS 680	// 0.05 * 13600
 
 #define TICK_TO_DUTY  0.00007352941f
 #define DEAD_BAND_CURRENT 0.25f
 #define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
 
-uint8_t dutyCounts = 0;
-uint8_t softStart_status = 0;
+
 
 // Gain Matrix
 
-
-// Configuration Parameters: Q[5000,5000,1,1,1,100,7] R[2000000,2000000]
-// Configuration System: [25,12,1.000000e-06,8.000000e-06,1.300000e-04,1.500000e-02,1.000000e-02]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.00492955f, K1_x_iL2=-0.00268384f, K1_x_vc=-0.05438196f, K1_d_u1=0.77020510f, K1_d_u2=-0.02621091f, K1_e_vo=-0.00084489f, K1_e_iL=-0.00021191f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=-0.00049150f, K2_x_iL2=0.03609094f, K2_x_vc=-0.00340130f, K2_d_u1=-0.05894857f, K2_d_u2=0.56715452f, K2_e_vo=-0.00333798f, K2_e_iL=0.00088787f;
-
+// Configuration Parameters: Q[220,220,1,1,1,250,1] R[50000,50000]
+// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.06392249f, K1_x_iL2=0.00820917f, K1_x_vc=0.17517085f, K1_d_u1=0.70882377f, K1_d_u2=0.08731888f, K1_e_vo=-0.02963524f, K1_e_iL=-0.00205761f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00820917f, K2_x_iL2=0.06392249f, K2_x_vc=0.17517085f, K2_d_u1=0.08731888f, K2_d_u2=0.70882377f, K2_e_vo=-0.02963524f, K2_e_iL=0.00205761f;
 
 
 typedef struct {
@@ -57,16 +54,9 @@ typedef struct {
 } LQR_vars;
 
 __attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0};
+__attribute__((section(".ccmram.data"))) static uint8_t dutyCounts = 0;
+__attribute__((section(".ccmram.data"))) static uint8_t softStart_status = 0;
 
-//__attribute__((section(".ccmram.data"))) static float lqr.iL1_prev;
-//__attribute__((section(".ccmram.data"))) static float lqr.iL2_prev;
-//__attribute__((section(".ccmram.data"))) static float lqr.vo_prev;
-//__attribute__((section(".ccmram.data"))) static float lqr.u1_prev;
-//__attribute__((section(".ccmram.data"))) static float lqr.u2_prev;
-//__attribute__((section(".ccmram.data"))) static float lqr.u1_prev_2;
-//__attribute__((section(".ccmram.data"))) static float lqr.u2_prev_2;
-//__attribute__((section(".ccmram.data"))) static float lqr.e_vo;
-//__attribute__((section(".ccmram.data"))) static float lqr.e_iL;
 
 // Filter Variable
 __attribute__((section(".ccmram.data"))) static float vo_filtered = 0.0f;
@@ -74,8 +64,6 @@ __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL2_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float VREF_soft = 0.0f;
 
-//__attribute__((section(".ccmram.data"))) static float vo_notch1 = 0.0f;
-//__attribute__((section(".ccmram.data"))) static float vo_notch2 = 0.0f;
 
 __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
@@ -92,15 +80,10 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 
 	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.2f * iL1_now) + (0.8f * iL1_filtered);
-	iL2_filtered = (0.2f * iL2_now) + (0.8f * iL2_filtered);
-	vo_filtered  = (0.9f * vo_now)  + (0.1f * vo_filtered);
+	iL1_filtered = (0.8f * iL1_now) + (0.2f * iL1_filtered);
+	iL2_filtered = (0.8f * iL2_now) + (0.2f * iL2_filtered);
+	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
 
-//	vo_filtered = (1.644265f * vo_now) + (-2.288533f * vo_notch1) + (1.644265f * vo_notch2);
-
-//	iL1_filtered = (0.5f * iL1_now) + (0.5f * iL1_filtered);
-//	iL2_filtered = (0.5f * iL2_now) + (0.5f * iL2_filtered);
-//	vo_filtered  = (0.3f * vo_now)  + (0.7f * vo_filtered);
 //	iL1_filtered = iL1_now;
 //	iL2_filtered = iL2_now;
 //	vo_filtered = vo_now;
@@ -117,9 +100,11 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	if(softStart_status == 1){
 
 	   VREF_soft = (VREF * 0.0049875f) + (VREF_soft * 0.9950125f); // 5ms settling
+//	   VREF_soft = (VREF * 0.0022999f) + (VREF_soft * 0.9977001f); // 10ms settling
+
 	   lqr.e_vo = VREF_soft - vo_filtered;
 
-	   if(VREF_soft >= (0.995f * VREF)) {
+	   if(VREF_soft >= (0.9999f * VREF)) {
 		   softStart_status = 0;
 	    }
 
@@ -128,16 +113,8 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 		lqr.e_vo = VREF - vo_filtered;
 	}
 
-
 	lqr.e_iL = IREF - (iL1_filtered  - iL2_filtered);
 //	lqr.e_iL = 0.0f;
-
-	if (lqr.e_iL < 0.1f && lqr.e_iL > -0.1f) {
-		lqr.e_iL  = 0.0f;
-	}
-
-
-
 
 	float delta_u1_fb = -( (K1_x_iL1 * delta_iL1) + (K1_x_iL2 * delta_iL2) + (K1_x_vc * delta_vo)
 						  +(K1_d_u1 * delta_d_u1 ) +  (K1_d_u2 * delta_d_u2)
@@ -146,28 +123,6 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float delta_u2_fb = -( (K2_x_iL1 * delta_iL1) + (K2_x_iL2 * delta_iL2) + (K2_x_vc * delta_vo)
 						  +(K2_d_u1 * delta_d_u1 ) +  (K2_d_u2 * delta_d_u2)
 						  +(K2_e_vo * lqr.e_vo) + (K2_e_iL * lqr.e_iL));
-
-
-//	int delta_ticks_1 = (int)((delta_u1_fb * 13600.0f) + 0.5f);
-//
-////	if(delta_ticks_1 >= -28 && delta_ticks_1 <= 28) delta_ticks_1 = 0;
-//
-//	int cmp1_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR	+  delta_ticks_1;
-//
-//	if(cmp1_val > MAX_TICKS) cmp1_val = MAX_TICKS; else if(cmp1_val < MIN_TICKS) cmp1_val = MIN_TICKS;
-//	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = cmp1_val;
-//
-//
-//	int delta_ticks_2 = (int)((delta_u2_fb * 13600.0f) + 0.5f);
-//
-////	if(delta_ticks_2 >= -28 && delta_ticks_2 <= 28) delta_ticks_2 = 0;
-//
-//	int cmp2_val = hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR	+  delta_ticks_2;
-//
-//
-//	if(cmp2_val > MAX_TICKS) cmp2_val = MAX_TICKS; else if(cmp2_val < MIN_TICKS) cmp2_val = MIN_TICKS;
-//	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = cmp2_val;
-
 
 	 float u1_now = (delta_u1_fb) + lqr.u1_prev;
 	 float u2_now = (delta_u2_fb) + lqr.u2_prev;
@@ -190,25 +145,17 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * u2_now;
 
-
-
 //	DAC1->DHR12R1 = (uint32_t)(1241.0f * i);
 
 	GPIOD->BSRR = (1U << (2 + 16)); // RESET PD2
-
 
 	// Shift State
 	lqr.iL1_prev 	= iL1_filtered ;		// iL1(n-1) = iL1(n)
 	lqr.iL2_prev 	= iL2_filtered ;		// iL2(n-1) = iL2(n)
 	lqr.vo_prev     = vo_filtered;
-//
-//	vo_notch2 = vo_notch1;
-//	vo_notch1 = vo_now;
 
 	lqr.u1_prev_2	= lqr.u1_prev; 		// u1(n-2) =  u1(n-1)
 	lqr.u2_prev_2	= lqr.u2_prev;		// u2(n-2) =  u2(n-1)
-//	lqr.u1_prev     = (float)cmp1_val * TICK_TO_DUTY;
-//	lqr.u2_prev     = (float)cmp2_val * TICK_TO_DUTY;
 	lqr.u1_prev 	= u1_now;
 	lqr.u2_prev 	= u2_now;
 
@@ -216,6 +163,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 // Please Reset before LQR execute
 void LQR_Reset(){
+
 	lqr.iL1_prev 	= 0.0f;
 	lqr.iL2_prev 	= 0.0f;
 	lqr.vo_prev 	= 0.0f;
@@ -223,21 +171,20 @@ void LQR_Reset(){
 	lqr.u2_prev 	= (float)MIN_TICKS * TICK_TO_DUTY;
 	lqr.u1_prev_2 	= (float)MIN_TICKS * TICK_TO_DUTY;
 	lqr.u2_prev_2 	= (float)MIN_TICKS * TICK_TO_DUTY;
-	lqr.e_vo		= 0.0f;;
-	lqr.e_iL		= 0.0f;;
+	lqr.e_vo		= 0.0f;
+	lqr.e_iL		= 0.0f;
 
-	vo_filtered = 0.1;
-	iL1_filtered = 0.0f;
-	iL2_filtered = 0.0f;
 	VREF_soft = 0.0f;
 
-	softStart_status = 1;
-
-//	vo_notch1 = 0.0f;
-//	vo_notch2 = 0.0f;
+	vo_filtered = 0.0f;
+	iL1_filtered = 0.0f;
+	iL2_filtered = 0.0f;
 
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = MIN_TICKS;
 	hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = MIN_TICKS;
+
+	softStart_status = 1;
+
 }
 
 void LQR_Init() {
@@ -256,10 +203,10 @@ void LQR_Start() {
 	HAL_HRTIM_WaveformCountStart_IT(&hhrtim1, HRTIM_TIMERID_MASTER|HRTIM_TIMERID_TIMER_A|HRTIM_TIMERID_TIMER_F|HRTIM_TIMERID_TIMER_E);
 	HAL_HRTIM_WaveformOutputStart(&hhrtim1, HRTIM_OUTPUT_TA1|HRTIM_OUTPUT_TA2|HRTIM_OUTPUT_TF1|HRTIM_OUTPUT_TF2|HRTIM_OUTPUT_TE1);
 
-
 	if (ADC3->ISR & ADC_ISR_JEOC) {
 		ADC3->ISR = ADC_ISR_JEOC; // Injected End of Conversion Flag
 	}
+
 	ADC3->IER |= ADC_IER_JEOCIE; // Injected End of Conversion Interrupt Enable
 
 }
@@ -272,7 +219,7 @@ void LQR_Stop() {
 	HAL_HRTIM_WaveformOutputStop(&hhrtim1, HRTIM_OUTPUT_TA1|HRTIM_OUTPUT_TA2|HRTIM_OUTPUT_TF1|HRTIM_OUTPUT_TF2|HRTIM_OUTPUT_TE1);
 	HAL_HRTIM_WaveformCountStop_IT(&hhrtim1, HRTIM_TIMERID_MASTER|HRTIM_TIMERID_TIMER_A|HRTIM_TIMERID_TIMER_F|HRTIM_TIMERID_TIMER_E);
 
-	LQR_Reset();
+//	LQR_Reset();
 
 
 }
@@ -285,6 +232,6 @@ void LQR_FaultStop() {
 	HAL_HRTIM_WaveformOutputStop(&hhrtim1, HRTIM_OUTPUT_TA1|HRTIM_OUTPUT_TA2|HRTIM_OUTPUT_TF1|HRTIM_OUTPUT_TF2|HRTIM_OUTPUT_TE1);
 	HAL_HRTIM_WaveformCountStop_IT(&hhrtim1, HRTIM_TIMERID_MASTER|HRTIM_TIMERID_TIMER_A|HRTIM_TIMERID_TIMER_F|HRTIM_TIMERID_TIMER_E);
 
-	LQR_Reset();
+//	LQR_Reset();
 
 }
