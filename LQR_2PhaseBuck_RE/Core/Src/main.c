@@ -69,7 +69,6 @@ COMP_HandleTypeDef hcomp4;
 DAC_HandleTypeDef hdac1;
 DAC_HandleTypeDef hdac2;
 DAC_HandleTypeDef hdac3;
-DAC_HandleTypeDef hdac4;
 
 HRTIM_HandleTypeDef hhrtim1;
 
@@ -82,6 +81,9 @@ volatile float ADC_VIN_raw;
 
 uint32_t current_time = 0;
 uint32_t last_vin_check_t = 0;
+
+uint16_t maxCurrentComp = 2792;    // (1.65 + (0.033x20) / 3)*4095 = 2792 @ 12A Max
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,7 +99,6 @@ static void MX_DAC3_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_COMP4_Init(void);
 static void MX_DAC2_Init(void);
-static void MX_DAC4_Init(void);
 static void MX_COMP2_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -116,12 +117,12 @@ void init_CCMRAM(void) {
 
 
 void HTRIM_FAULT_HANDLER(void) {
-	STATE = STATE_FAULT;
-
-	GPIOA->BSRR = (1U << (10 + 16) ); 	// Disable Phase 1
+  GPIOA->BSRR = (1U << (10 + 16) ); 	// Disable Phase 1
 	GPIOC->BSRR = (1U << (9 + 16) ); 	// Disable Phase 2
 
 	LQR_FaultStop();
+
+	STATE = STATE_FAULT;
 
 	GPIOC->BSRR = (1U << (0 + 16) ); // LED_IDLE set to Low
 	GPIOC->BSRR = (1U << (1 + 16) ); // LED_RUN set to Low
@@ -151,6 +152,8 @@ uint8_t INPUT_PWR_GOOD() {
 }
 
 void SYSTEM_ENABLE() {
+  if (STATE == STATE_RUN) return;
+
 	if (INPUT_PWR_GOOD() == 0 || STATE == STATE_FAULT) {
 		HTRIM_FAULT_HANDLER();
 	} else {
@@ -285,7 +288,6 @@ int main(void)
   MX_TIM2_Init();
   MX_COMP4_Init();
   MX_DAC2_Init();
-  MX_DAC4_Init();
   MX_COMP2_Init();
   /* USER CODE BEGIN 2 */
 
@@ -300,7 +302,13 @@ int main(void)
   HAL_ADCEx_InjectedStart(&hadc1);
   HAL_ADCEx_InjectedStart_IT(&hadc3);
 
+  // Setting DAC and COMP to compare Phase current
+  HAL_DAC_Start(&hdac3, DAC_CHANNEL_2);
+  HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_2, DAC_ALIGN_12B_R, maxCurrentComp);
+  HAL_COMP_Start(&hcomp2);
+  HAL_COMP_Start(&hcomp4);
 
+  // Start Protocal
   SYSTEM_PowerOn();
 
 //  SYSTEM_FORCE_ENABLE(); for debugging!!!!!
@@ -865,53 +873,6 @@ static void MX_DAC3_Init(void)
 }
 
 /**
-  * @brief DAC4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC4_Init(void)
-{
-
-  /* USER CODE BEGIN DAC4_Init 0 */
-
-  /* USER CODE END DAC4_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC4_Init 1 */
-
-  /* USER CODE END DAC4_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac4.Instance = DAC4;
-  if (HAL_DAC_Init(&hdac4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
-  sConfig.DAC_DMADoubleDataMode = DISABLE;
-  sConfig.DAC_SignedFormat = DISABLE;
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_INTERNAL;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac4, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC4_Init 2 */
-
-  /* USER CODE END DAC4_Init 2 */
-
-}
-
-/**
   * @brief HRTIM1 Initialization Function
   * @param None
   * @retval None
@@ -1086,8 +1047,8 @@ static void MX_HRTIM1_Init(void)
   pTimerCfg.FaultLock = HRTIM_TIMFAULTLOCK_READONLY;
   pTimerCfg.DeadTimeInsertion = HRTIM_TIMDEADTIMEINSERTION_ENABLED;
   pTimerCfg.DelayedProtectionMode = HRTIM_TIMER_F_DELAYEDPROTECTION_DISABLED;
+  pTimerCfg.UpdateTrigger = HRTIM_TIMUPDATETRIGGER_TIMER_A;
   pTimerCfg.ResetTrigger = HRTIM_TIMRESETTRIGGER_MASTER_CMP1;
-  pTimerCfg.ReSyncUpdate = HRTIM_TIMERESYNC_UPDATE_CONDITIONAL;
   if (HAL_HRTIM_WaveformTimerConfig(&hhrtim1, HRTIM_TIMERINDEX_TIMER_F, &pTimerCfg) != HAL_OK)
   {
     Error_Handler();
@@ -1301,7 +1262,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
