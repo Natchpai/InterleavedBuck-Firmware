@@ -33,14 +33,22 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_VOLTAGE 0.02f
 #define DEAD_BAND_DUTY 0.002f
 
-
-
 // Gain Matrix
+// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
 
 // Configuration Parameters: Q[220,220,1,1,1,250,1] R[50000,50000]
-// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
 //__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.06392249f, K1_x_iL2=0.00820917f, K1_x_vc=0.17517085f, K1_d_u1=0.70882377f, K1_d_u2=0.08731888f, K1_e_vo=-0.02963524f, K1_e_iL=-0.00205761f;
 //__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00820917f, K2_x_iL2=0.06392249f, K2_x_vc=0.17517085f, K2_d_u1=0.08731888f, K2_d_u2=0.70882377f, K2_e_vo=-0.02963524f, K2_e_iL=0.00205761f;
+
+
+//// Configuration Parameters: Q[8000,8000,1,1,1,100,1] R[2000000,2000000]
+//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.04567254f, K1_x_iL2=0.00082502f, K1_x_vc=0.00106214f, K1_d_u1=0.54486895f, K1_d_u2=0.01295390f, K1_e_vo=-0.00337406f, K1_e_iL=-0.00034364f;
+//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00082502f, K2_x_iL2=0.04567254f, K2_x_vc=0.00106214f, K2_d_u1=0.01295390f, K2_d_u2=0.54486895f, K2_e_vo=-0.00337406f, K2_e_iL=0.00034364f;
+// Configuration Parameters: Q[2000,2000,1,1,1,100,1] R[2000000,2000000]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02998693f, K1_x_iL2=0.00117729f, K1_x_vc=0.00977468f, K1_d_u1=0.35381667f, K1_d_u2=0.01666196f, K1_e_vo=-0.00401351f, K1_e_iL=-0.00040932f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00117729f, K2_x_iL2=0.02998693f, K2_x_vc=0.00977468f, K2_d_u1=0.01666196f, K2_d_u2=0.35381667f, K2_e_vo=-0.00401351f, K2_e_iL=0.00040932f;
+
+
 
 typedef struct {
 	float iL1_prev;
@@ -54,7 +62,7 @@ typedef struct {
 	float e_iL;
 } LQR_vars;
 
-__attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0};
+__attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0.0f};
 __attribute__((section(".ccmram.data"))) static uint8_t dutyCounts = 0;
 __attribute__((section(".ccmram.data"))) static uint8_t softStart_status = 0;
 
@@ -63,7 +71,7 @@ __attribute__((section(".ccmram.data"))) static uint8_t softStart_status = 0;
 __attribute__((section(".ccmram.data"))) static float vo_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL2_filtered = 0.0f;
-__attribute__((section(".ccmram.data"))) static float VREF_soft = 0.0f;
+__attribute__((section(".ccmram.data"))) static float ref_Vsoft = 0.0f;
 
 
 __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
@@ -100,12 +108,11 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	// Softstart function
 	if(softStart_status == 1){
 
-	   VREF_soft = (VREF * 0.0049875f) + (VREF_soft * 0.9950125f); // 5ms settling
-//	   VREF_soft = (VREF * 0.0022999f) + (VREF_soft * 0.9977001f); // 10ms settling
+	   ref_Vsoft = (VREF * 0.0049875f) + (ref_Vsoft * 0.9950125f); // 5ms settling
 
-	   lqr.e_vo = VREF_soft - vo_filtered;
+	   lqr.e_vo = ref_Vsoft - vo_filtered;
 
-	   if(VREF_soft >= (0.9999f * VREF)) {
+	   if(ref_Vsoft >= (0.9999f * VREF)) {
 		   softStart_status = 0;
 	    }
 	}
@@ -165,14 +172,14 @@ void LQR_Reset(){
 	lqr.iL1_prev 	= 0.0f;
 	lqr.iL2_prev 	= 0.0f;
 	lqr.vo_prev 	= 0.0f;
-	lqr.u1_prev 	= (float)MIN_TICKS * TICK_TO_DUTY;
-	lqr.u2_prev 	= (float)MIN_TICKS * TICK_TO_DUTY;
-	lqr.u1_prev_2 	= (float)MIN_TICKS * TICK_TO_DUTY;
-	lqr.u2_prev_2 	= (float)MIN_TICKS * TICK_TO_DUTY;
+	lqr.u1_prev 	= 0.0f;
+	lqr.u2_prev 	= DUTYMIN;
+	lqr.u1_prev_2 	= DUTYMIN;
+	lqr.u2_prev_2 	= DUTYMIN;
 	lqr.e_vo		= 0.0f;
 	lqr.e_iL		= 0.0f;
 
-	VREF_soft = 0.0f;
+	ref_Vsoft = 0.0f;
 
 	vo_filtered = 0.0f;
 	iL1_filtered = 0.0f;
