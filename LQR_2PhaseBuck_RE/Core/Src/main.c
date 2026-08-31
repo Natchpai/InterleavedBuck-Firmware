@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -72,8 +71,6 @@ DAC_HandleTypeDef hdac3;
 
 HRTIM_HandleTypeDef hhrtim1;
 
-TIM_HandleTypeDef htim2;
-
 /* USER CODE BEGIN PV */
 
 volatile System_StateTypeDef STATE;
@@ -96,7 +93,6 @@ static void MX_ADC4_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_HRTIM1_Init(void);
 static void MX_DAC3_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_COMP4_Init(void);
 static void MX_DAC2_Init(void);
 static void MX_COMP2_Init(void);
@@ -117,22 +113,21 @@ void init_CCMRAM(void) {
 
 
 void HTRIM_FAULT_HANDLER(void) {
-  GPIOA->BSRR = (1U << (10 + 16) ); 	// Disable Phase 1
-	GPIOC->BSRR = (1U << (9 + 16) ); 	// Disable Phase 2
-
 	STATE = STATE_FAULT;
 
-	LQR_FaultStop();
+	GPIOA->BSRR = (1U << (10 + 16) ); 	// Disable Phase 1
+	GPIOC->BSRR = (1U << (9 + 16) ); 	// Disable Phase 2
 
+	LQR_FaultStop();
 
 	GPIOC->BSRR = (1U << (0 + 16) ); // LED_IDLE set to Low
 	GPIOC->BSRR = (1U << (1 + 16) ); // LED_RUN set to Low
 	GPIOC->BSRR = (1U << 2); // set to High
 }
 
-void HAL_HRTIM_Fault1Callback(HRTIM_HandleTypeDef *hhrtim){ HTRIM_FAULT_HANDLER(); }
-void HAL_HRTIM_Fault2Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }
-void HAL_HRTIM_Fault6Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }
+void HAL_HRTIM_Fault1Callback(HRTIM_HandleTypeDef *hhrtim){ HTRIM_FAULT_HANDLER(); } // CURRENT COMP FAULT
+void HAL_HRTIM_Fault2Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }// CURRENT COMP FAULT
+void HAL_HRTIM_Fault6Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }// USER FAULT
 void HAL_HRTIM_SystemFaultCallback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }
 
 
@@ -153,7 +148,7 @@ uint8_t INPUT_PWR_GOOD() {
 }
 
 void SYSTEM_ENABLE() {
-  if (STATE == STATE_RUN) return;
+    if (STATE == STATE_RUN) return;
 
 	if (INPUT_PWR_GOOD() == 0 || STATE == STATE_FAULT) {
 		HTRIM_FAULT_HANDLER();
@@ -284,9 +279,7 @@ int main(void)
   MX_ADC4_Init();
   MX_DAC1_Init();
   MX_HRTIM1_Init();
-  MX_USB_Device_Init();
   MX_DAC3_Init();
-  MX_TIM2_Init();
   MX_COMP4_Init();
   MX_DAC2_Init();
   MX_COMP2_Init();
@@ -303,12 +296,13 @@ int main(void)
   HAL_ADCEx_InjectedStart(&hadc1);
   HAL_ADCEx_InjectedStart_IT(&hadc3);
 
-  // Setting DAC and COMP to compare Phase current
+  // Setting DAC and COMP to compare Phase current // Do not Disable this staff
   HAL_DAC_Start(&hdac3, DAC_CHANNEL_2);
   HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_2, DAC_ALIGN_12B_R, maxCurrentComp);
   HAL_COMP_Start(&hcomp2);
   HAL_COMP_Start(&hcomp4);
 
+  STATE = STATE_IDLE;
   // Start Protocal
   SYSTEM_PowerOn();
 
@@ -369,9 +363,8 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV6;
@@ -1148,51 +1141,6 @@ static void MX_HRTIM1_Init(void)
 
   /* USER CODE END HRTIM1_Init 2 */
   HAL_HRTIM_MspPostInit(&hhrtim1);
-
-}
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
 
 }
 
