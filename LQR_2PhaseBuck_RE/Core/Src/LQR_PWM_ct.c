@@ -39,9 +39,8 @@ extern HRTIM_HandleTypeDef hhrtim1;
 
 // Configuration Parameters: Q[220,220,1,1,1,250,1] R[50000,50000]
 // Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.06392249f, K1_x_iL2=0.00820917f, K1_x_vc=0.17517085f, K1_d_u1=0.70882377f, K1_d_u2=0.08731888f, K1_e_vo=-0.02963524f, K1_e_iL=-0.00205761f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00820917f, K2_x_iL2=0.06392249f, K2_x_vc=0.17517085f, K2_d_u1=0.08731888f, K2_d_u2=0.70882377f, K2_e_vo=-0.02963524f, K2_e_iL=0.00205761f;
-
+//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.06392249f, K1_x_iL2=0.00820917f, K1_x_vc=0.17517085f, K1_d_u1=0.70882377f, K1_d_u2=0.08731888f, K1_e_vo=-0.02963524f, K1_e_iL=-0.00205761f;
+//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00820917f, K2_x_iL2=0.06392249f, K2_x_vc=0.17517085f, K2_d_u1=0.08731888f, K2_d_u2=0.70882377f, K2_e_vo=-0.02963524f, K2_e_iL=0.00205761f;
 
 typedef struct {
 	float iL1_prev;
@@ -80,11 +79,11 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float iL2_now 	= (ADC_iL2 	* GAIN_iL2) - i2_Offset;
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
-
-	// y(n)	=	(a * x(n) )+ (1-a)(y(n-1))
-	iL1_filtered = (0.8f * iL1_now) + (0.2f * iL1_filtered);
-	iL2_filtered = (0.8f * iL2_now) + (0.2f * iL2_filtered);
-	vo_filtered  = (0.8f * vo_now)  + (0.2f * vo_filtered);
+	// IIR Filter // 50kHz cut-off
+	// a = Ts / [(1/2pi.f) + Ts ] = 0.611
+	iL1_filtered = (0.611f * iL1_now) + (0.389f * iL1_filtered);
+	iL2_filtered = (0.611f * iL2_now) + (0.389f * iL2_filtered);
+	vo_filtered  = (0.611f * vo_now)  + (0.389f * vo_filtered);
 
 //	iL1_filtered = iL1_now;
 //	iL2_filtered = iL2_now;
@@ -135,15 +134,13 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 		 if(dutyCounts >= 1000) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
 	 } else if(u1_now < DUTYMIN) u1_now = DUTYMIN;
 
-	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = TO_DUTY * u1_now;
-
-
 	 if(u2_now > DUTYMAX)  {
 		 u2_now = DUTYMAX;
 		 dutyCounts++;
 		 if(dutyCounts >= 1000) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
 	 } else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
 
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = TO_DUTY * u1_now;
 	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = TO_DUTY * u2_now;
 
 //	DAC1->DHR12R1 = (uint32_t)(1241.0f * i);
