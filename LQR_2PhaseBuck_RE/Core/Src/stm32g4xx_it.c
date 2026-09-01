@@ -56,6 +56,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_adc4;
 extern ADC_HandleTypeDef hadc3;
 extern HRTIM_HandleTypeDef hhrtim1;
 /* USER CODE BEGIN EV */
@@ -207,6 +208,20 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles DMA1 channel1 global interrupt.
+  */
+void DMA1_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc4);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
+}
+
+/**
   * @brief This function handles EXTI line[15:10] interrupts.
   */
 void EXTI15_10_IRQHandler(void)
@@ -233,7 +248,9 @@ __attribute__((section(".ccmram.text"))) void ADC3_IRQHandler(void)
 		LQR_execute();
 //		 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 13600.0f * 0.35f;
 //		 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = 13600.0f * 0.35f;
-		ADC3->ISR = ADC_ISR_JEOC;	    // Injection End of Conversion (rc_w1) clear flag
+
+		//	 (ADC3->JDR1) is Hardware Self-Clearing
+		//   ADC3->ISR = ADC_ISR_JEOC;	    // Injection End of Conversion (rc_w1) clear flag
 		//	 ADC3->ISR = ADC_ISR_JEOS; // Injection End of Sequense (rc_w1) clear flag
 		GPIOC->BSRR = (1U << (12 + 16)); // RESET PC12
 		return;
