@@ -22,6 +22,7 @@
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
+extern DMA_HandleTypeDef hdma_adc4;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
@@ -72,6 +73,8 @@ void HAL_MspInit(void)
   __HAL_RCC_PWR_CLK_ENABLE();
 
   /* System interrupt init*/
+  /* DebugMonitor_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DebugMonitor_IRQn, 1, 0);
 
   /** Disable the internal Pull-Up in Dead Battery pins of UCPD peripheral
   */
@@ -231,6 +234,24 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+    /* ADC4 DMA Init */
+    /* ADC4 Init */
+    hdma_adc4.Instance = DMA1_Channel1;
+    hdma_adc4.Init.Request = DMA_REQUEST_ADC4;
+    hdma_adc4.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_adc4.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_adc4.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_adc4.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+    hdma_adc4.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+    hdma_adc4.Init.Mode = DMA_CIRCULAR;
+    hdma_adc4.Init.Priority = DMA_PRIORITY_LOW;
+    if (HAL_DMA_Init(&hdma_adc4) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(hadc,DMA_Handle,hdma_adc4);
+
     /* USER CODE BEGIN ADC4_MspInit 1 */
 
     /* USER CODE END ADC4_MspInit 1 */
@@ -325,6 +346,8 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     */
     HAL_GPIO_DeInit(GPIOB, ADC4_IN3_VIN_Pin|ADC4_IN4_I_IN_Pin);
 
+    /* ADC4 DMA DeInit */
+    HAL_DMA_DeInit(hadc->DMA_Handle);
     /* USER CODE BEGIN ADC4_MspDeInit 1 */
 
     /* USER CODE END ADC4_MspDeInit 1 */
@@ -431,50 +454,7 @@ void HAL_COMP_MspDeInit(COMP_HandleTypeDef* hcomp)
   */
 void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(hdac->Instance==DAC1)
-  {
-    /* USER CODE BEGIN DAC1_MspInit 0 */
-
-    /* USER CODE END DAC1_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_DAC1_CLK_ENABLE();
-
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**DAC1 GPIO Configuration
-    PA5     ------> DAC1_OUT2
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    /* USER CODE BEGIN DAC1_MspInit 1 */
-
-    /* USER CODE END DAC1_MspInit 1 */
-  }
-  else if(hdac->Instance==DAC2)
-  {
-    /* USER CODE BEGIN DAC2_MspInit 0 */
-
-    /* USER CODE END DAC2_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_DAC2_CLK_ENABLE();
-
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**DAC2 GPIO Configuration
-    PA6     ------> DAC2_OUT1
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    /* USER CODE BEGIN DAC2_MspInit 1 */
-
-    /* USER CODE END DAC2_MspInit 1 */
-  }
-  else if(hdac->Instance==DAC3)
+  if(hdac->Instance==DAC3)
   {
     /* USER CODE BEGIN DAC3_MspInit 0 */
 
@@ -484,6 +464,7 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
     /* USER CODE BEGIN DAC3_MspInit 1 */
 
     /* USER CODE END DAC3_MspInit 1 */
+
   }
 
 }
@@ -496,41 +477,7 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
   */
 void HAL_DAC_MspDeInit(DAC_HandleTypeDef* hdac)
 {
-  if(hdac->Instance==DAC1)
-  {
-    /* USER CODE BEGIN DAC1_MspDeInit 0 */
-
-    /* USER CODE END DAC1_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_DAC1_CLK_DISABLE();
-
-    /**DAC1 GPIO Configuration
-    PA5     ------> DAC1_OUT2
-    */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_5);
-
-    /* USER CODE BEGIN DAC1_MspDeInit 1 */
-
-    /* USER CODE END DAC1_MspDeInit 1 */
-  }
-  else if(hdac->Instance==DAC2)
-  {
-    /* USER CODE BEGIN DAC2_MspDeInit 0 */
-
-    /* USER CODE END DAC2_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_DAC2_CLK_DISABLE();
-
-    /**DAC2 GPIO Configuration
-    PA6     ------> DAC2_OUT1
-    */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_6);
-
-    /* USER CODE BEGIN DAC2_MspDeInit 1 */
-
-    /* USER CODE END DAC2_MspDeInit 1 */
-  }
-  else if(hdac->Instance==DAC3)
+  if(hdac->Instance==DAC3)
   {
     /* USER CODE BEGIN DAC3_MspDeInit 0 */
 
