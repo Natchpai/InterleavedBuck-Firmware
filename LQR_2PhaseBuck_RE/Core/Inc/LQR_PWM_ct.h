@@ -16,6 +16,7 @@ void LQR_Start();
 void LQR_Stop();
 void LQR_FaultStop();
 void LQR_execute(void);
+float LQR_RETURN_POWER();
 
 void HTRIM_FAULT_HANDLER();
 
