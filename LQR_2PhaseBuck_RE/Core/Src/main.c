@@ -52,8 +52,10 @@ typedef enum {
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define VIN_MIN_THRESHOLD 1911		// ( 4095/(10*3) ) * Vin_min = 136.5 * 14 = 1911
+#define VIN_MIN_THRESHOLD 	1911			// ( 4095/(10*3) ) * Vin_min = 136.5 * 14 = 1911
 
+#define IIN_GAIN 			0.00732600732f 	// (1/20 * 3/4095 * 1/0.005) : 1/IC's GAIN * ADC GAIN * 1/R
+#define ADC_GAIN_VIN		0.0073260f   	// (3/4095) * 10
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -61,12 +63,11 @@ ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 ADC_HandleTypeDef hadc3;
 ADC_HandleTypeDef hadc4;
+DMA_HandleTypeDef hdma_adc4;
 
 COMP_HandleTypeDef hcomp2;
 COMP_HandleTypeDef hcomp4;
 
-DAC_HandleTypeDef hdac1;
-DAC_HandleTypeDef hdac2;
 DAC_HandleTypeDef hdac3;
 
 HRTIM_HandleTypeDef hhrtim1;
@@ -75,9 +76,18 @@ HRTIM_HandleTypeDef hhrtim1;
 
 volatile System_StateTypeDef STATE;
 volatile float ADC_VIN_raw;
+volatile float ADC_IIN_raw;
+volatile uint16_t adc4_buffer[2];
 
+volatile float I_In 	= 0.0f;
+volatile float V_In 	= 0.0f;
+volatile float powerIn 	= 0.0f;
+volatile float powerOut = 0.0f;
+volatile float eff 		= 0.0f;
 uint32_t current_time = 0;
 uint32_t last_vin_check_t = 0;
+
+uint32_t last_power_check_t = 0;
 
 uint16_t maxCurrentComp = 2792;    // (1.65 + (0.033x20) / 3)*4095 = 2792 @ 12A Max
 
@@ -86,15 +96,14 @@ uint16_t maxCurrentComp = 2792;    // (1.65 + (0.033x20) / 3)*4095 = 2792 @ 12A 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_ADC4_Init(void);
-static void MX_DAC1_Init(void);
 static void MX_HRTIM1_Init(void);
 static void MX_DAC3_Init(void);
 static void MX_COMP4_Init(void);
-static void MX_DAC2_Init(void);
 static void MX_COMP2_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -130,11 +139,24 @@ void HAL_HRTIM_Fault2Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER
 void HAL_HRTIM_Fault6Callback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }// USER FAULT
 void HAL_HRTIM_SystemFaultCallback(HRTIM_HandleTypeDef *hhrtim) { HTRIM_FAULT_HANDLER(); }
 
+void efficiency_measure() {
+//	ADC_VIN_raw = adc4_buffer[0];
+//	ADC_IIN_raw = adc4_buffer[1];
+
+	V_In = ADC_VIN_raw * ADC_GAIN_VIN;
+	I_In = ADC_IIN_raw * IIN_GAIN;
+	powerIn = V_In * I_In;
+
+	powerOut = LQR_RETURN_POWER();
+
+	eff = powerOut / powerIn;
+
+}
 
 // CHECK INPUT VOLTAGE
 uint8_t INPUT_PWR_GOOD() {
-
-	ADC_VIN_raw = ADC4->DR;
+	ADC_VIN_raw = adc4_buffer[0];
+	ADC_IIN_raw = adc4_buffer[1];
 
 	if (ADC_VIN_raw  >= VIN_MIN_THRESHOLD)
 	{
@@ -273,15 +295,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_ADC4_Init();
-  MX_DAC1_Init();
   MX_HRTIM1_Init();
   MX_DAC3_Init();
   MX_COMP4_Init();
-  MX_DAC2_Init();
   MX_COMP2_Init();
   /* USER CODE BEGIN 2 */
 
@@ -290,12 +311,13 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc3, ADC_SINGLE_ENDED);
   HAL_ADCEx_Calibration_Start(&hadc4, ADC_SINGLE_ENDED);
 
-  HAL_ADC_Start(&hadc4);
+//  HAL_ADC_Start(&hadc4);
 
   HAL_ADCEx_InjectedStart(&hadc2);
   HAL_ADCEx_InjectedStart(&hadc1);
   HAL_ADCEx_InjectedStart_IT(&hadc3);
 
+  HAL_ADC_Start_DMA(&hadc4, (uint32_t*)adc4_buffer, 2);
   // Setting DAC and COMP to compare Phase current // Do not Disable this staff
   HAL_DAC_Start(&hdac3, DAC_CHANNEL_2);
   HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_2, DAC_ALIGN_12B_R, maxCurrentComp);
@@ -340,6 +362,13 @@ int main(void)
 				GPIOC->BSRR = (1U << 2); // LED_FAULT set to High
 			}
 		}
+	 }
+
+	 if (current_time - last_power_check_t >= 1000) {
+		 last_power_check_t = current_time;
+
+		 efficiency_measure();
+
 	 }
 
 
@@ -627,15 +656,15 @@ static void MX_ADC4_Init(void)
   hadc4.Init.Resolution = ADC_RESOLUTION_12B;
   hadc4.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc4.Init.GainCompensation = 0;
-  hadc4.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc4.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc4.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc4.Init.LowPowerAutoWait = DISABLE;
   hadc4.Init.ContinuousConvMode = ENABLE;
-  hadc4.Init.NbrOfConversion = 1;
+  hadc4.Init.NbrOfConversion = 2;
   hadc4.Init.DiscontinuousConvMode = DISABLE;
   hadc4.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc4.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc4.Init.DMAContinuousRequests = DISABLE;
+  hadc4.Init.DMAContinuousRequests = ENABLE;
   hadc4.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc4.Init.OversamplingMode = DISABLE;
   if (HAL_ADC_Init(&hadc4) != HAL_OK)
@@ -647,10 +676,19 @@ static void MX_ADC4_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_3;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_6CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc4, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc4, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -722,100 +760,6 @@ static void MX_COMP4_Init(void)
   /* USER CODE BEGIN COMP4_Init 2 */
 
   /* USER CODE END COMP4_Init 2 */
-
-}
-
-/**
-  * @brief DAC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC1_Init(void)
-{
-
-  /* USER CODE BEGIN DAC1_Init 0 */
-
-  /* USER CODE END DAC1_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC1_Init 1 */
-
-  /* USER CODE END DAC1_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac1.Instance = DAC1;
-  if (HAL_DAC_Init(&hdac1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
-  sConfig.DAC_DMADoubleDataMode = DISABLE;
-  sConfig.DAC_SignedFormat = DISABLE;
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_EXTERNAL;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC1_Init 2 */
-
-  /* USER CODE END DAC1_Init 2 */
-
-}
-
-/**
-  * @brief DAC2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC2_Init(void)
-{
-
-  /* USER CODE BEGIN DAC2_Init 0 */
-
-  /* USER CODE END DAC2_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC2_Init 1 */
-
-  /* USER CODE END DAC2_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac2.Instance = DAC2;
-  if (HAL_DAC_Init(&hdac2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT1 config
-  */
-  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
-  sConfig.DAC_DMADoubleDataMode = DISABLE;
-  sConfig.DAC_SignedFormat = DISABLE;
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_EXTERNAL;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac2, &sConfig, DAC_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC2_Init 2 */
-
-  /* USER CODE END DAC2_Init 2 */
 
 }
 
@@ -1016,7 +960,7 @@ static void MX_HRTIM1_Init(void)
   pTimerCfg.DeadTimeInsertion = HRTIM_TIMDEADTIMEINSERTION_ENABLED;
   pTimerCfg.DelayedProtectionMode = HRTIM_TIMER_A_B_C_DELAYEDPROTECTION_DISABLED;
   pTimerCfg.UpdateTrigger = HRTIM_TIMUPDATETRIGGER_NONE;
-  pTimerCfg.ResetTrigger = HRTIM_TIMRESETTRIGGER_NONE;
+  pTimerCfg.ResetTrigger = HRTIM_TIMRESETTRIGGER_MASTER_PER;
   pTimerCfg.ResetUpdate = HRTIM_TIMUPDATEONRESET_DISABLED;
   pTimerCfg.ReSyncUpdate = HRTIM_TIMERESYNC_UPDATE_CONDITIONAL;
   if (HAL_HRTIM_WaveformTimerConfig(&hhrtim1, HRTIM_TIMERINDEX_TIMER_A, &pTimerCfg) != HAL_OK)
@@ -1029,7 +973,6 @@ static void MX_HRTIM1_Init(void)
   pTimerCfg.FaultLock = HRTIM_TIMFAULTLOCK_READWRITE;
   pTimerCfg.DeadTimeInsertion = HRTIM_TIMDEADTIMEINSERTION_DISABLED;
   pTimerCfg.DelayedProtectionMode = HRTIM_TIMER_D_E_DELAYEDPROTECTION_DISABLED;
-  pTimerCfg.ResetTrigger = HRTIM_TIMRESETTRIGGER_MASTER_PER;
   pTimerCfg.ReSyncUpdate = HRTIM_TIMERESYNC_UPDATE_UNCONDITIONAL;
   if (HAL_HRTIM_WaveformTimerConfig(&hhrtim1, HRTIM_TIMERINDEX_TIMER_E, &pTimerCfg) != HAL_OK)
   {
@@ -1145,6 +1088,23 @@ static void MX_HRTIM1_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -1181,6 +1141,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA5 PA6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : EN_CH1_Pin */
   GPIO_InitStruct.Pin = EN_CH1_Pin;
