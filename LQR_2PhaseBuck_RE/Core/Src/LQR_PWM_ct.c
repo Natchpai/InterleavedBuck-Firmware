@@ -48,8 +48,6 @@ extern HRTIM_HandleTypeDef hhrtim1;
 __attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02998693f, K1_x_iL2=0.00117729f, K1_x_vc=0.00977468f, K1_d_u1=0.35381667f, K1_d_u2=0.01666196f, K1_e_vo=-0.00401351f, K1_e_iL=-0.00040932f;
 __attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00117729f, K2_x_iL2=0.02998693f, K2_x_vc=0.00977468f, K2_d_u1=0.01666196f, K2_d_u2=0.35381667f, K2_e_vo=-0.00401351f, K2_e_iL=0.00040932f;
 
-
-
 typedef struct {
 	float iL1_prev;
 	float iL2_prev;
@@ -66,7 +64,6 @@ __attribute__((section(".ccmram.data"))) static LQR_vars lqr = {0.0f};
 __attribute__((section(".ccmram.data"))) static uint8_t dutyCounts = 0;
 __attribute__((section(".ccmram.data"))) static uint8_t softStart_status = 0;
 
-
 // Filter Variable
 __attribute__((section(".ccmram.data"))) static float vo_filtered = 0.0f;
 __attribute__((section(".ccmram.data"))) static float iL1_filtered = 0.0f;
@@ -78,7 +75,7 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 
 	GPIOD->BSRR = (1U << 2); // SET PD2
 
-	float ADC_iL1 	= (float)(ADC1->JDR1); 	 	// Raw Data: Inductor-1's current
+	float ADC_iL1 	= (float)(ADC1->JDR1); 	 		// Raw Data: Inductor-1's current
 	float ADC_iL2 	= (float)(ADC2->JDR1);			// Raw Data: Inductor-2's current
 	float ADC_vo 	= (float)(ADC3->JDR1);			// Raw Data: Output Voltage
 
@@ -147,8 +144,8 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 		 if(dutyCounts >= 1000) { HTRIM_FAULT_HANDLER(); dutyCounts = 0;}
 	 } else if(u2_now < DUTYMIN) u2_now = DUTYMIN;
 
-	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = TO_DUTY * u1_now;
-	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = TO_DUTY * u2_now;
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = (int)(TO_DUTY * u1_now);
+	 hhrtim1.Instance->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_F].CMP1xR = (int)(TO_DUTY * u2_now);
 
 //	DAC1->DHR12R1 = (uint32_t)(1241.0f * i);
 
@@ -219,11 +216,14 @@ void LQR_Start() {
 
 void LQR_Stop() {
 
-	ADC3->IER &= ~ADC_IER_JEOCIE;
+//	ADC3->IER &= ~ADC_IER_JEOCIE;
 
 	HAL_HRTIM_WaveformOutputStop(&hhrtim1, HRTIM_OUTPUT_TA1|HRTIM_OUTPUT_TA2|HRTIM_OUTPUT_TF1|HRTIM_OUTPUT_TF2|HRTIM_OUTPUT_TE1);
 	HAL_HRTIM_WaveformCountStop_IT(&hhrtim1, HRTIM_TIMERID_MASTER|HRTIM_TIMERID_TIMER_A|HRTIM_TIMERID_TIMER_F|HRTIM_TIMERID_TIMER_E);
 
+//	if (ADC3->ISR & ADC_ISR_JEOC) {
+//		ADC3->ISR = ADC_ISR_JEOC; // Injected End of Conversion Flag
+//	}
 //	LQR_Reset();
 
 
@@ -232,11 +232,16 @@ void LQR_Stop() {
 
 void LQR_FaultStop() {
 
-	ADC3->IER &= ~ADC_IER_JEOCIE;
+//	ADC3->IER &= ~ADC_IER_JEOCIE;
 
 	HAL_HRTIM_WaveformOutputStop(&hhrtim1, HRTIM_OUTPUT_TA1|HRTIM_OUTPUT_TA2|HRTIM_OUTPUT_TF1|HRTIM_OUTPUT_TF2|HRTIM_OUTPUT_TE1);
 	HAL_HRTIM_WaveformCountStop_IT(&hhrtim1, HRTIM_TIMERID_MASTER|HRTIM_TIMERID_TIMER_A|HRTIM_TIMERID_TIMER_F|HRTIM_TIMERID_TIMER_E);
 
 //	LQR_Reset();
 
+}
+
+float LQR_RETURN_POWER() {
+	float power = (iL1_filtered + iL2_filtered) * vo_filtered;
+	return power;
 }
