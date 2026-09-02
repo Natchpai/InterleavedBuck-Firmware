@@ -313,6 +313,7 @@ int main(void)
 
 //  HAL_ADC_Start(&hadc4);
 
+  // Must call ADC Slave First : ADC2 is slave ADC1 is Master
   HAL_ADCEx_InjectedStart(&hadc2);
   HAL_ADCEx_InjectedStart(&hadc1);
   HAL_ADCEx_InjectedStart_IT(&hadc3);
