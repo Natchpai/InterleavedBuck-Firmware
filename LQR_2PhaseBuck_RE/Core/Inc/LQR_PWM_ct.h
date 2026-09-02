@@ -12,7 +12,6 @@
 
 void LQR_Init();
 void LQR_Reset();
-void LQR_Start();
 void LQR_Stop();
 void LQR_FaultStop();
 void LQR_execute(void);
