@@ -34,19 +34,17 @@ extern HRTIM_HandleTypeDef hhrtim1;
 #define DEAD_BAND_DUTY 0.002f
 
 // Gain Matrix
-// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
 
 // Configuration Parameters: Q[220,220,1,1,1,250,1] R[50000,50000]
+// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
 //__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.06392249f, K1_x_iL2=0.00820917f, K1_x_vc=0.17517085f, K1_d_u1=0.70882377f, K1_d_u2=0.08731888f, K1_e_vo=-0.02963524f, K1_e_iL=-0.00205761f;
 //__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00820917f, K2_x_iL2=0.06392249f, K2_x_vc=0.17517085f, K2_d_u1=0.08731888f, K2_d_u2=0.70882377f, K2_e_vo=-0.02963524f, K2_e_iL=0.00205761f;
 
+// Configuration Parameters: Q[1000,1000,1,1,1,150,1] R[2000000,2000000]
+// Configuration System: [24,12,1.000000e-05,1.000000e-05,1.300000e-04,1.500000e-02,1.000000e-03]
+__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02517982f, K1_x_iL2=0.00200817f, K1_x_vc=0.01791322f, K1_d_u1=0.29417617f, K1_d_u2=0.02542977f, K1_e_vo=-0.00512261f, K1_e_iL=-0.00043000f;
+__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00200817f, K2_x_iL2=0.02517982f, K2_x_vc=0.01791322f, K2_d_u1=0.02542977f, K2_d_u2=0.29417617f, K2_e_vo=-0.00512261f, K2_e_iL=0.00043000f;
 
-//// Configuration Parameters: Q[8000,8000,1,1,1,100,1] R[2000000,2000000]
-//__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.04567254f, K1_x_iL2=0.00082502f, K1_x_vc=0.00106214f, K1_d_u1=0.54486895f, K1_d_u2=0.01295390f, K1_e_vo=-0.00337406f, K1_e_iL=-0.00034364f;
-//__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00082502f, K2_x_iL2=0.04567254f, K2_x_vc=0.00106214f, K2_d_u1=0.01295390f, K2_d_u2=0.54486895f, K2_e_vo=-0.00337406f, K2_e_iL=0.00034364f;
-// Configuration Parameters: Q[2000,2000,1,1,1,100,1] R[2000000,2000000]
-__attribute__((section(".ccmram.rodata")))const float K1_x_iL1=0.02998693f, K1_x_iL2=0.00117729f, K1_x_vc=0.00977468f, K1_d_u1=0.35381667f, K1_d_u2=0.01666196f, K1_e_vo=-0.00401351f, K1_e_iL=-0.00040932f;
-__attribute__((section(".ccmram.rodata")))const float K2_x_iL1=0.00117729f, K2_x_iL2=0.02998693f, K2_x_vc=0.00977468f, K2_d_u1=0.01666196f, K2_d_u2=0.35381667f, K2_e_vo=-0.00401351f, K2_e_iL=0.00040932f;
 
 typedef struct {
 	float iL1_prev;
@@ -84,8 +82,9 @@ __attribute__((section(".ccmram.text"))) void LQR_execute(void) {
 	float iL2_now 	= (ADC_iL2 	* GAIN_iL2) - i2_Offset;
 	float vo_now  	=  ADC_vo  	* GAIN_vo;
 
-	// IIR Filter // 50kHz cut-off
-	// a = Ts / [(1/2pi.f) + Ts ] = 0.611
+	// IIR Filter // 33kHz cut-off
+	// b = 1-e^{-Ts/tau} , tau = 1/2pi.f
+//	vo_filtered  = (b)* vo_now  + (1-b)* vo_filtered);
 	iL1_filtered = (0.611f * iL1_now) + (0.389f * iL1_filtered);
 	iL2_filtered = (0.611f * iL2_now) + (0.389f * iL2_filtered);
 	vo_filtered  = (0.611f * vo_now)  + (0.389f * vo_filtered);
@@ -190,13 +189,6 @@ void LQR_Reset(){
 }
 
 void LQR_Init() {
-
-	LQR_Start();
-
-}
-
-void LQR_Start() {
-
 	LQR_Reset();
 
 
@@ -210,7 +202,6 @@ void LQR_Start() {
 	}
 
 	ADC3->IER |= ADC_IER_JEOCIE; // Injected End of Conversion Interrupt Enable
-
 }
 
 
