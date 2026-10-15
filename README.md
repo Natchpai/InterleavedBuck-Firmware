@@ -1,4 +1,4 @@
-# InterleavedBuck_Firmware
+# InterleavedBuck Firmware
 
 **Firmware for a 2-phase interleaved buck converter on an STM32G474RE, with an LQR-based PWM controller.**
 
