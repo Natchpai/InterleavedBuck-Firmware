@@ -1,0 +1,47 @@
+%%{init: {'themeVariables': {'lineColor': '#7f8c8d'}}}%%
+flowchart LR
+    subgraph Sense[Sensing]
+        IL1[ADC1 inj: iL1]
+        IL2[ADC2 inj: iL2]
+        VO[ADC3 inj: Vout]
+        VIN[ADC4 DMA: Vin, Iin]
+    end
+    subgraph Ctrl[Control]
+        ISR[ADC3_IRQHandler]
+        LQR[LQR_execute]
+    end
+    subgraph PWM[HRTIM1]
+        TA[Timer A: phase 1]
+        TF[Timer F: phase 2]
+    end
+    subgraph Prot[Protection]
+        COMP[COMP2 / COMP4 + DAC3]
+        FLT[HRTIM faults 1, 2, 6]
+    end
+    IL1 --> LQR
+    IL2 --> LQR
+    VO --> ISR --> LQR
+    LQR -->|<b>CMP1 duty</b>| TA
+    LQR -->|<b>CMP1 duty</b>| TF
+    COMP --> FLT --> TA
+    FLT --> TF
+    FLT -->|<b>callback</b>| SUP[HTRIM_FAULT_HANDLER]
+    VIN --> MAIN[main loop supervisor]
+    SW[SW1 EXTI] --> MAIN
+    MAIN -->|<b>SYSTEM_ENABLE / DISABLE</b>| LQR
+
+    classDef sense fill:#cfe8fc,stroke:#5b9bd5,stroke-width:2px,color:#1f3a52,font-weight:bold
+    classDef ctrl fill:#d5f0d3,stroke:#6bb26a,stroke-width:2px,color:#1d4220,font-weight:bold
+    classDef pwm fill:#fde8c8,stroke:#e0a040,stroke-width:2px,color:#5a3b0a,font-weight:bold
+    classDef prot fill:#fbd0d6,stroke:#d9708a,stroke-width:2px,color:#5c1a2a,font-weight:bold
+    classDef sup fill:#e5d8f5,stroke:#9b7fcf,stroke-width:2px,color:#37245a,font-weight:bold
+    class IL1,IL2,VO,VIN sense
+    class ISR,LQR ctrl
+    class TA,TF pwm
+    class COMP,FLT prot
+    class SUP,MAIN,SW sup
+    linkStyle default stroke:#7f8c8d,stroke-width:2px
+    style Sense fill:none,stroke:#d9d9d9,stroke-width:2px
+    style Ctrl fill:none,stroke:#d9d9d9,stroke-width:2px
+    style PWM fill:none,stroke:#d9d9d9,stroke-width:2px
+    style Prot fill:none,stroke:#d9d9d9,stroke-width:2px

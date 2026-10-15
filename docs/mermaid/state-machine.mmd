@@ -1,0 +1,17 @@
+%%{init: {'themeVariables': {'lineColor': '#7f8c8d', 'transitionColor': '#7f8c8d'}}}%%
+stateDiagram-v2
+    direction LR
+    [*] --> IDLE: boot, SYSTEM_PowerOn
+    IDLE --> RUN: SW1 high and Vin good (SYSTEM_ENABLE)
+    RUN --> IDLE: SW1 low (SYSTEM_DISABLE)
+    RUN --> FAULT: fault callback, Vin low, duty saturated
+    IDLE --> FAULT: SW1 high but Vin low
+    FAULT --> FAULT: SYSTEM_ENABLE keeps the fault
+    FAULT --> [*]: reset only
+
+    classDef idle fill:#cfe8fc,stroke:#5b9bd5,color:#1f3a52,font-weight:bold
+    classDef run fill:#d5f0d3,stroke:#6bb26a,color:#1d4220,font-weight:bold
+    classDef fault fill:#fbd0d6,stroke:#d9708a,color:#5c1a2a,font-weight:bold
+    class IDLE idle
+    class RUN run
+    class FAULT fault

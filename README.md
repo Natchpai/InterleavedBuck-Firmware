@@ -27,55 +27,7 @@ The firmware is a bare-metal, interrupt-driven design on the STM32 HAL. A fast c
 
 ### Block Diagram
 
-```mermaid
-%%{init: {'themeVariables': {'lineColor': '#ffffff'}}}%%
-flowchart LR
-    subgraph Sense[Sensing]
-        IL1[ADC1 inj: iL1]
-        IL2[ADC2 inj: iL2]
-        VO[ADC3 inj: Vout]
-        VIN[ADC4 DMA: Vin, Iin]
-    end
-    subgraph Ctrl[Control]
-        ISR[ADC3_IRQHandler]
-        LQR[LQR_execute]
-    end
-    subgraph PWM[HRTIM1]
-        TA[Timer A: phase 1]
-        TF[Timer F: phase 2]
-    end
-    subgraph Prot[Protection]
-        COMP[COMP2 / COMP4 + DAC3]
-        FLT[HRTIM faults 1, 2, 6]
-    end
-    IL1 --> LQR
-    IL2 --> LQR
-    VO --> ISR --> LQR
-    LQR -->|<b>CMP1 duty</b>| TA
-    LQR -->|<b>CMP1 duty</b>| TF
-    COMP --> FLT --> TA
-    FLT --> TF
-    FLT -->|<b>callback</b>| SUP[HTRIM_FAULT_HANDLER]
-    VIN --> MAIN[main loop supervisor]
-    SW[SW1 EXTI] --> MAIN
-    MAIN -->|<b>SYSTEM_ENABLE / DISABLE</b>| LQR
-
-    classDef sense fill:#cfe8fc,stroke:#5b9bd5,stroke-width:2px,color:#1f3a52,font-weight:bold
-    classDef ctrl fill:#d5f0d3,stroke:#6bb26a,stroke-width:2px,color:#1d4220,font-weight:bold
-    classDef pwm fill:#fde8c8,stroke:#e0a040,stroke-width:2px,color:#5a3b0a,font-weight:bold
-    classDef prot fill:#fbd0d6,stroke:#d9708a,stroke-width:2px,color:#5c1a2a,font-weight:bold
-    classDef sup fill:#e5d8f5,stroke:#9b7fcf,stroke-width:2px,color:#37245a,font-weight:bold
-    class IL1,IL2,VO,VIN sense
-    class ISR,LQR ctrl
-    class TA,TF pwm
-    class COMP,FLT prot
-    class SUP,MAIN,SW sup
-    linkStyle default stroke:#ffffff,stroke-width:2px
-    style Sense fill:none,stroke:#d9d9d9,stroke-width:2px
-    style Ctrl fill:none,stroke:#d9d9d9,stroke-width:2px
-    style PWM fill:none,stroke:#d9d9d9,stroke-width:2px
-    style Prot fill:none,stroke:#d9d9d9,stroke-width:2px
-```
+![Block diagram](docs/images/block-diagram.png)
 
 ### Components
 
@@ -123,25 +75,7 @@ Timer E (up mode, period 30000) sets output `TE1` on the master period and reset
 
 `System_StateTypeDef` has three states: `STATE_IDLE`, `STATE_RUN` and `STATE_FAULT`.
 
-```mermaid
-%%{init: {'themeVariables': {'lineColor': '#ffffff', 'transitionColor': '#ffffff'}}}%%
-stateDiagram-v2
-    direction LR
-    [*] --> IDLE: boot, SYSTEM_PowerOn
-    IDLE --> RUN: SW1 high and Vin good (SYSTEM_ENABLE)
-    RUN --> IDLE: SW1 low (SYSTEM_DISABLE)
-    RUN --> FAULT: fault callback, Vin low, duty saturated
-    IDLE --> FAULT: SW1 high but Vin low
-    FAULT --> FAULT: SYSTEM_ENABLE keeps the fault
-    FAULT --> [*]: reset only
-
-    classDef idle fill:#cfe8fc,stroke:#5b9bd5,color:#1f3a52,font-weight:bold
-    classDef run fill:#d5f0d3,stroke:#6bb26a,color:#1d4220,font-weight:bold
-    classDef fault fill:#fbd0d6,stroke:#d9708a,color:#5c1a2a,font-weight:bold
-    class IDLE idle
-    class RUN run
-    class FAULT fault
-```
+![System state machine](docs/images/state-machine.png)
 
 - **Boot:** `init_CCMRAM()` copies the CCM RAM sections from flash. Then the clock, peripherals, ADC calibration and ADC starts run. `SYSTEM_PowerOn()` blinks the fault LED once, then reads SW1.
 - **Enable:** `SYSTEM_ENABLE()` checks the input voltage. If good, it sets `EN_CH1` and `EN_CH2`, sets the state to RUN and calls `LQR_Init()`. `LQR_Init()` resets the controller, starts the HRTIM counters and outputs, and enables the ADC3 interrupt.
@@ -190,6 +124,9 @@ InterleavedBuck_Firmware/
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── docs/
+│   ├── images/             (block-diagram.png, state-machine.png)
+│   └── mermaid/            (Mermaid source of the diagrams)
 └── LQR_2PhaseBuck_RE/
     ├── Core/
     │   ├── Inc/            (main.h, LQR_PWM_ct.h, HAL config and IRQ headers)
