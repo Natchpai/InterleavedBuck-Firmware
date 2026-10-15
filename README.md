@@ -12,9 +12,6 @@ STM32CubeIDE project for the STM32G474RETx. The project is named `LQR_2PhaseBuck
 |---|---|
 | MCU | STM32G474RETx |
 | Toolchain | STM32CubeIDE (CubeMX `.ioc` project) |
-| Input voltage | NOT_VERIFIED |
-| Output voltage | NOT_VERIFIED |
-| Switching frequency | NOT_VERIFIED |
 
 *Specifications describe design targets unless explicitly identified as measured or verified results.*
 
